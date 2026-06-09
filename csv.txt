@@ -1,0 +1,866 @@
+ Saya lihat ada perbedaan penting antara **dashboard.js** (yang render tabel horizontal dan terbukti benar) dengan **diagram.js** (yang menghitung akumulasi).
+
+Penyebab paling mungkin ada di sini:
+
+```js
+// dashboard.js
+let shiftKerja = "1";
+if (col < rowShift.length && rowShift[col]?.trim() !== "") {
+    shiftKerja = rowShift[col].trim();
+}
+```
+
+vs
+
+```js
+// diagram.js
+let shiftKerja = "1";
+let rawShiftValue = "";
+
+if (col < rowShift.length && rowShift[col]?.trim() !== "") {
+    rawShiftValue = rowShift[col].trim();
+} else {
+    let pointerShiftCol = col;
+    while (pointerShiftCol >= 2) {
+        if (rowShift[pointerShiftCol]?.trim()) {
+            rawShiftValue = rowShift[pointerShiftCol].trim();
+            break;
+        }
+        pointerShiftCol--;
+    }
+}
+```
+
+Dashboard **tidak melakukan backtracking shift**.
+Diagram **melakukan backtracking shift**.
+
+---
+
+### Masalahnya ada pada struktur header spreadsheet
+
+Header shift aslinya seperti:
+
+| Tanggal | Shift1 | Shift2 | Shift3 |
+| ------- | ------ | ------ | ------ |
+
+tetapi setelah export CSV dari Google Sheet yang merge cell, sering jadi:
+
+```txt
+Shift 1,,,Shift 2,,,Shift 3,,,
+```
+
+atau
+
+```txt
+Shift 1,,,
+```
+
+dan sisanya kosong.
+
+Karena diagram.js melakukan:
+
+```js
+while(pointerShiftCol >= 2)
+```
+
+dia akan mencari shift terakhir yang tidak kosong.
+
+Akibatnya satu blok kolom bisa diwarisi shift yang salah.
+
+---
+
+### Bukti dari hasilmu
+
+Yang benar:
+
+| Shift |  Total |
+| ----- | -----: |
+| 1     | 97.080 |
+| 2     | 72.720 |
+| 3     | 73.610 |
+
+Yang muncul:
+
+| Shift |  Total |
+| ----- | -----: |
+| 1     | 78.080 |
+| 2     | 87.600 |
+| 3     | 77.730 |
+
+Selisih:
+
+```text
+Shift1 kehilangan 19.000
+Shift2 bertambah 14.880
+Shift3 bertambah 4.120
+```
+
+Ini pola khas data yang berpindah shift.
+
+Kalau output dobel atau batch dobel, total akhir 243.410 ikut berubah.
+
+Tapi total akhir tetap:
+
+```text
+78.080
+87.600
+77.730
+-------
+243.410
+```
+
+Artinya:
+
+✅ data output tidak hilang
+
+✅ data output tidak dobel
+
+❌ hanya masuk ke shift yang salah
+
+---
+
+### Ada bug kedua yang lebih berbahaya
+
+Di dashboard:
+
+```js
+shiftKerja = rowShift[col].trim();
+```
+
+Nilainya bisa:
+
+```js
+"Shift 1"
+"Shift 2"
+"Shift 3"
+```
+
+Sedangkan di diagram:
+
+```js
+const matchDig = rawShiftValue.match(/\d+/);
+
+if (matchDig) {
+   shiftKerja = matchDig[0];
+}
+```
+
+Lalu nanti dihitung:
+
+```js
+filterRecordsShift = node.records_murni.filter(
+   r => r.shift === sKey
+);
+```
+
+Jadi diagram mengharapkan:
+
+```js
+"1"
+"2"
+"3"
+```
+
+Kalau ada sebagian record tersimpan:
+
+```js
+"Shift 1"
+```
+
+dan sebagian:
+
+```js
+"1"
+```
+
+maka filter bisa kacau.
+
+---
+
+### Cara memastikan sumber masalah
+
+Sebelum:
+
+```js
+node.records_murni.push({
+    tanggal: det.tanggal,
+    shift: String(det.shift).trim(),
+    kode_produk: det.kode_produk,
+    output: outVal
+});
+```
+
+tambahkan:
+
+```js
+if(item.mesin === "Sig 6"){
+    console.log(
+        det.tanggal,
+        det.shift,
+        det.kode_produk,
+        outVal
+    );
+}
+```
+
+Lalu sebelum perhitungan shift:
+
+```js
+console.table(
+   node.records_murni.map(r => ({
+      shift: r.shift,
+      output: r.output
+   }))
+);
+```
+
+Saya curiga kuat nanti akan terlihat ada record seperti:
+
+```text
+Shift 1
+Shift 1
+Shift 1
+Shift 1
+Shift 2
+Shift 2
+Shift 3
+Shift 3
+```
+
+yang posisi kolomnya tidak sesuai dengan tabel dashboard.
+
+---
+
+### Yang paling saya curigai
+
+Justru bagian ini:
+
+```js
+// REPARASI LOGIKA SHIFT
+while (pointerShiftCol >= 2) {
+    if (rowShift[pointerShiftCol]?.trim()) {
+        rawShiftValue = rowShift[pointerShiftCol].trim();
+        break;
+    }
+    pointerShiftCol--;
+}
+```
+
+Karena dashboard yang tampil benar **tidak menggunakan logika reparasi shift sama sekali**, sedangkan diagram menggunakan logika berbeda.
+
+Kalau sumber data dashboard dan diagram harus identik, sebaiknya parsing shift di diagram dibuat sama persis dengan dashboard terlebih dahulu. Setelah itu baru cek lagi apakah hasil Shift 1 kembali menjadi **97.080**, Shift 2 **72.720**, dan Shift 3 **73.610**.
+ , 
+,JUN,,,,,,,,,,,,,,,,,,,,,,,,,,, ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+TANGGAL,,1 Jun 2026,,,2 Jun 2026,,,3 Jun 2026,,,4 Jun 2026,,,5 Jun 2026,,,6 Jun 2026,,,7 Jun 2026,,,8 Jun 2026,,,9 Jun 2026,,,10 Jun 2026,,,11 Jun 2026,,,12 Jun 2026,,,13 Jun 2026,,,14 Jun 2026,,,15 Jun 2026,,,16 Jun 2026,,,17 Jun 2026,,,18 Jun 2026,,,19 Jun 2026,,,20 Jun 2026,,,21 Jun 2026,,,22 Jun 2026,,,23 Jun 2026,,,24 Jun 2026,,,25 Jun 2026,,,26 Jun 2026,,,27 Jun 2026,,,28 Jun 2026,,,29 Jun 2026,,,30 Jun 2026,,,,,
+SHIFT,,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3,1,2,3
+KODE PRODUK 1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+"JINSUNG 1
+Target per shift
+Shift 1 = 11.340
+Shift 2 = 9.315
+Shift 3 = 11.340,KODE PRODUK1,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKCPA,CUCI MESIN,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,LKJTA CARTONING,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,"
+,NO BATCH,JE926,JE926,JE927,JE928,JE929,JE930,JE931,JF933,JF934,JF935,JF936,JF937,,JF970,JF970,JF971,JF973,JF974,JF975,JF976,JF977,JF978,JF979,JF980,JF981,JF982,JF983,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,5600,3618,3089,3063,3371,3665,2717,9242,9241,9220,9229,7637,,7200,489,1230,9250,9246,9225,9236,9223,9232,9226,9248,9232,7488,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),0.1,0.1,0.2,0.1,0.2,0.1,0.1,0.3,0.3,0.1,0.3,0.4,,0.1,0.4,0.1,0.3,0.5,0.2,0.4,0.1,0.3,0.2,0.1,0.3,0.4,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,LKPTA,,,LKPTA,LKCPA,,,,LKJTA CARTONING,LKJTA CARTONING,,,,,,,,,LKJTA CARTONING,LKJTA CARTONING,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,JE927,JE928,JE929,JE930,JE931,JF932,,,JF936,JF937,,,,JF791,JF972,,,,,,,,,JF982,JF983,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,6150,6150,5900,5600,6500,9235,,,1200,1600,,,,8000,9218,,,,,,,,,1750,2300,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),,0.1,0.1,0,0,0.1,0.1,,,0,0,,,,0.1,0.1,,,,,,,,,0,0.1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+JINSUNG 2,KODE PRODUK1,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,CUCI MESIN,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,JE953,JE954,JE955,JE956,JE957,JE958,JE959,JE960,JF961,JF962,JF963,JF964,JF965,JF966,JF968,JF969,JF970,JF971,JF972,JF973,JF974,JF975,,JF976,JF976,JF978,JF979,JF980,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,3549,6415,5721,6512,7516,7764,6299,3977,3723,2545,872,1368,1565,608,8774,8742,8773,8775,8794,8750,8795,8785,,6800,1938,8768,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),0.1,0.4,0.6,0.5,0.1,0.2,0.4,0.7,0.1,0.4,0,0.02,0.4,0.3,0.6,0.1,0.2,0.2,0.4,0.2,0.2,0.4,,0,0.3,0.1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,LNKOA,,,,,,,,,,,LNKOA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,JE954,JE955,JE956,JE957,JE958,JE959,JE960,JF961,JF962,JF963,JF964,JF965,JF966,JF967,,,,,,,,,,,JF977,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,2400,3050,2250,1250,1000,2500,4800,5050,6200,7900,7400,7200,8200,8783,,,,,,,,,,,8761,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),0.1,0,0,0.1,0,0,0,0,0,0.4,0.1,0.1,0,0.3,,,,,,,,,,,0.3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+JINSUNG 3,KODE PRODUK1,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,JE863,JE863,JE864,JE865,JE866,JE867,JE868,JE869,JF870,JF870,JF871,JF872,JF873,JF874,JF875,JF876,JF877,JF878,JF879,JF880,JF881,JF882,JF882,JF883,JF884,JF885,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,5550,3700,4249,6193,7209,9258,9230,9259,6000,3250,,5055,5660,6086,6752,6759,5643,6261,9231,9251,9257,8850,391,1696,4084,3864,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),0.1,0.3,,0.1,0.4,0.6,0.1,0.6,1,0,,0.8,0.6,0.3,1,0.3,0.2,0.8,0.5,0.8,0.4,0.2,0.3,0.1,0.2,0.4,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,LKNTA,LKNTA,LKNTA,,,,,,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,LKNTA,,,,,,LKNTA,LKNTA,LKNTA,LKNTA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,JE864,JE865,JE866,,,,,,JF871,JF871,JF873,JF874,JF875,JF876,JF877,JF878,,,,,,JF883,JF884,JF885,JF886,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,4900,3050,2050,,,,,,4700,4545,3600,3150,2500,2500,3600,2600,,,,,,7550,5150,5400,4800,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),,0.2,0,"0,1",,,,,,0,0.3,0.2,0.1,0.2,0.2,0.1,0.1,,,,,,0.5,0.2,0.2,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,LKNTA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,JF872,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,4200,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),,,,,,,,,,,0.2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+JINSUNG 4,KODE PRODUK1,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,JE716,JE717,JE718,JE719,JE721,JE721,JE722,JF723,JE724,JF726,JF727,JF728,JF729,JF730,JF731,JF733,JF734,JF735,JF736,JF737,JF738,JF739,JF740,JF741,JF742,JF743,JF744,JF745,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,2009,2872,1364,485,8300,577,1374,1703,788,8894,5993,5043,3519,2158,1096,8964,6780,8112,6584,5251,3712,3575,3951,4274,4264,1882,1689,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),0.2,0,0.2,0.2,0.1,0.1,0.1,0.1,0.2,0.2,0.1,0.3,0.2,0.1,0.2,0.1,0.1,0.3,0.1,0.2,0.3,0.1,0.1,0.1,0.4,0.3,0.3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,LKMCA,LKMCA,LKMCA,LKMCA,,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,LKMCA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,JE717,JE718,JE719,JE720,,JE722,JF723,JE724,JF725,JF727,JF728,JF729,JF730,JF731,JF732,JF734,JF735,JF736,JF737,JF738,JF739,JF740,JF741,JF742,JF743,JF744,JF745,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,6000,7500,8400,8961,,7500,7200,8100,8869,2900,3850,5400,6750,7800,8890,2100,750,2300,3600,5200,5300,4950,4600,4600,7000,7200,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),0.1,0.1,0.1,0.1,,0.1,0,0.1,0.1,0,0,0,0,0,0.3,0,0,0,0,0,0,0,0,0.3,0,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+SIG 5,KODE PRODUK,OFF,OFF,OFF,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,CUCI MESIN,OFF,OFF,POSNA,OFF,OFF,OFF,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,JE193,JE193,JE193,JE193,JE194,JE194,JF195,JF195,JF196,JF196,JF196,,,,JF197,,,,JF197,JF197,JF197,JF197,JF200,JF200,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,7440,6720,15120,7160,20640,13500,24240,19640,18480,20400,8620,,,,10320,,,,13440,4800,17280,1650,20400,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,0.2,0,0.3,0.2,0.3,0.1,0.1,0.2,0.4,0,0,,,,0.4,,,,0.9,0.5,0.3,0.1,0.1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,POSNA,,POSNA,,,,,,,,,,,,,,,,POSNA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,JE194,,JF195,,,,,,,,,,,,,,,,JF200,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,13440,,3600, ,,,,,,,,,,,,,,,17760,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,0,,0.5,,,,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+SIG 6,KODE PRODUK1,,,,,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,PWSNH,CUCI MESIN,OFF,OFF,OFF,OFF,POSNA,POSNA,POSNA,POSNA,POSNA,POSNA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,JE300,JE300,JE300,JE300,JE300,JE301,JE301,JE301,JF302,JF302,JE302,JF302,,,,,,JF198,JF198,JF198,JF198,JF199,JF199,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,0,19200,15360,18240,5810,20640,19920,10720,20880,17760,12240,2520,,,,,,4800,18000,16800,7880,13680,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,0,0.1,1.5,0.1,0.1,0.3,0.1,0.4,0.2,0.2,0.2,0.7,,,,,,0.4,0.5,0.3,0.3,0.3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,PWSNH,,,PWSNH,,,,,,,,,,,,,POSNA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,JE301,,,JF302,,,,,,,,,,,,,JF199,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,7440,,,5520,,,,,,,,,,,,,6000,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,0.2,,,0,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+JINSUNG 5,KODE PRODUK1,OFF,OFF,OFF,CUCI MESIN,LKXOD,OFF,LKXOD,LKXOD,OFF,LKXOD,LKXOD,OFF,LKXOD,CUCI MESIN,OFF,OFF,OFF,OFF,OFF,OFF,OFF,LKXNA,LKXNA,OFF,LKXNA,LKXNA,OFF,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,JE759,,JE759,JF760,,JF766,JF767,,JF768,,,,,,,,,JF149,JF150,,JF151,JF152,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,14700,,6960,579,,21723,9432,,3168,,,,,,,,,21228,21294,,19260,13293,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,0.6,,0.4,0.1,,1.5,0.9,,0.4,,,,,,,,,0.3,0.5,,2.2,0.6,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,LKXOD,LKXOD,,LKXOD,LKXOD,,LKXOD,,,,,,,,,,LKXNA,,LKXNA,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,JE760,JF765,,JE767,JF768,,JF769,,,,,,,,,,JF151,,JF152,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,21210,21678,,12300,18600,,21780,,,,,,,,,,1980,,8100,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,0.5,2.3,,0.1,1.9,,0.7,,,,,,,,,,0.1,,0.3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,CUCI MESIN,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+ILAPAK 11,KODE PRODUK1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+ILAPAK 1,KODE PRODUK1,,,,LKKSB,LKKSB,LKKSB,LKKSB,LKKSB,LKKSB,LKKSB,LKKSB,CUCI MESIN,LNKKB,LNKKB,LNKKB,LNKKB,LNKKB,LNKKB,OFF,OFF,OFF,LNKKB,LNKKB,OFF,LNKKB,OFF,OFF,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,JE098,JE099,JE099,JE099,JE100,JE100,JE100,JE100,,JF192,JF192,JF192,JF192,JF193,JF193,,,,JF194,JF194,,JF194,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,5946,11700,81250,15075,11850,10200,14550,2133,,6150,13350,14100,3315,13500,13275,,,,11400,12000,,13629,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,0,0,0,0.2,0,0,0,0,,0,0,0,0,0,0,,,,0,0,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,LKKSB,,,,,,,,,,,,LNKKB,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,JE099,,,,,,,,,,,,JF193,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,3750,,,,,,,,,,,,10200,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,0,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+UNIFIL B,KODE PRODUK1,OFF,OFF,OFF,OFF,OFF,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,CUCI MESIN,CUCI MESIN,,,,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,LKXOB,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,JE761,JE761,JE762,JE762,JE763,JE763,JE763,JF764,JE774,JE774,JE774,,,,,,JF775,JF775,JF775,JF776,JF776,JF776,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,13500,18910,16000,16450,18000,12400,4105,18450,12750,17000,2350,,,,,,3300,16700,12370,17500,8250,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,0.3,0.6,0,0.6,0.2,0.2,1.4,1.1,0,0.3,0.2,,,,,,0,0,0.4,0.5,1.3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,OFF,OFF,OFF,OFF,OFF,,,,,,,LKXOB,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,JE764,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,14000,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,1.3,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+UNIFIL A,KODE PRODUK1,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+JOYEA,KODE PRODUK1,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,LEJSD,LEJSD,LEJSD,LEJSD,LEJSD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,JF185,JF185,JF185,JF186,JF187,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,4068,3612,168,2531,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,0,0,0,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,,,,,,,,,,,,,LEJSD,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,JF186,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,5304,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+UNIFIL A,KODE PRODUK1,OFF,OFF,OFF,OFF,OFF,OFF,OFF,LEJSC,LEJSC,LEJSC,LEJSC,LEJSC,LEJSC,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,,LEJSC,LEJSC,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,HE134,HE134,HE135,HE135,HF136,HF136,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,HF137,HF137,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,16200,3029,7410,988,15750,1706,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,6000,13110,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,0.5,0.1,2.4,0.2,0.6,0.2,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,0.1,309,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,LEJSC,,LEJSC,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,LEJSC,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,HE135,,HF136,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,HF138,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,10800,,1050,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,6165,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,1.1,,0,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,1,,,,,,,,,,,,,,,,,,,,
+YONAN,KODE PRODUK1,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,OFF,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,KODE PRODUK,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NO BATCH,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,OUTPUT,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+,NC SACHET (Kg),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+
+
+Oke, ini sudah cukup banget buat nemuin akar masalahnya. Dan jujur ini bukan bug kecil — ini **mismatch antara cara kamu parsing vs struktur CSV real**.
+
+Aku langsung ke inti:
+
+---
+
+# 🔥 ROOT CAUSE UTAMA (kenapa per shift di diagram.js salah)
+
+## 1. CSV kamu **bukan tabel rapi**
+
+Format kamu itu:
+
+* Header TANGGAL (row 1)
+* Header SHIFT (row 2)
+* Lalu **blok mesin**
+* Tiap mesin bisa punya:
+
+  * KODE PRODUK
+  * NO BATCH
+  * OUTPUT
+  * NC SACHET
+  * lalu bisa ada **blok KODE PRODUK kedua, ketiga, dst**
+
+👉 Artinya:
+
+> 1 mesin = banyak “sub-block” vertikal yang tidak fixed row spacing
+
+---
+
+## 2. Tapi di code kamu ada asumsi ini:
+
+```js
+let currentBatchOffsets = [
+  { kode: 0, batch: 1, output: 2 },
+  { kode: 4, batch: 5, output: 6 }
+];
+let lompatanBaris = 7;
+```
+
+Dan ini problemnya:
+
+### ❌ kamu menganggap:
+
+* semua mesin punya struktur row tetap (stride 7 / 11)
+* batch selalu di offset tetap
+
+### padahal CSV kamu:
+
+* JINSUNG bisa 3 batch
+* SIG bisa 2 batch
+* ILAPAK bisa 1–3 batch
+* bahkan ada blok kosong + CUCI MESIN + OFF
+
+👉 jadi **row offset kamu pasti geser**
+
+---
+
+## 3. BUG paling fatal (ini yang bikin diagram salah)
+
+### Ini bagian yang bikin data SHIFT jadi kacau:
+
+```js
+for (let col = 2; col < totalKolom; col++) {
+```
+
+Kamu pakai **col index global**
+
+TAPI shift itu:
+
+```
+SHIFT row = [1,2,3,1,2,3,...]
+```
+
+Artinya:
+
+### ❌ kamu menganggap shift selalu:
+
+```
+col 2 = shift 1
+col 3 = shift 2
+col 4 = shift 3
+ulang
+```
+
+### padahal di CSV kamu:
+
+shift itu **flat timeline per tanggal**, bukan per batch
+
+---
+
+## 4. MASALAH DI DIAGRAM.JS (yang kamu sebut)
+
+Biasanya diagram.js error karena:
+
+### ❌ kamu pakai salah satu ini:
+
+* asumsi `item.details` sudah grouped per shift
+* atau sum per shift = index array
+* padahal data kamu:
+
+```js
+{
+  tanggal,
+  shift,
+  output
+}
+```
+
+👉 tapi shift itu STRING "1","2","3"
+
+---
+
+# ⚠️ INTI MASALAH BESAR
+
+## Kamu sekarang sedang:
+
+> mencampur 3 dimensi data jadi 1 loop linear
+
+Padahal struktur realnya:
+
+### DATA ASLI CSV:
+
+```
+MESIN
+  ├── BATCH 1
+  │     ├── OUTPUT per tanggal per shift
+  ├── BATCH 2
+  │     ├── OUTPUT per tanggal per shift
+```
+
+---
+
+# 💥 KENAPA DIAGRAM SHIFT SALAH
+
+Karena kemungkinan besar di diagram.js kamu melakukan:
+
+```js
+group by shift index (array position)
+```
+
+atau:
+
+```js
+sum index % 3
+```
+
+❌ ini salah karena:
+
+* shift di CSV bukan posisi array
+* shift adalah field data
+
+---
+
+# 🧠 FIX STRATEGY (yang benar)
+
+## 1. STOP pakai index kolom untuk shift logic
+
+Ganti ke:
+
+```js
+shiftKerja = rowShift[col]
+```
+
+✔ ini sudah benar di parser kamu
+❌ tapi diagram.js kemungkinan belum pakai ini
+
+---
+
+## 2. Di diagram.js HARUS group seperti ini:
+
+```js
+map[mesin][shift] += output
+```
+
+atau:
+
+```js
+map[mesin][tanggal][shift]
+```
+
+---
+
+## 3. JANGAN pakai index col untuk shift grouping
+
+❌ salah:
+
+```js
+shiftIndex = col % 3
+```
+
+✔ benar:
+
+```js
+shift = det.shift
+```
+
+---
+
+## 4. Problem terbesar: batch overlap
+
+CSV kamu punya:
+
+```
+KODE PRODUK
+NO BATCH
+OUTPUT
+KODE PRODUK (lagi)
+NO BATCH (lagi)
+OUTPUT (lagi)
+```
+
+👉 ini berarti:
+
+### ❌ parse kamu sekarang:
+
+menganggap semua row itu satu mesin
+
+### padahal:
+
+itu multiple dataset dalam 1 mesin
+
+---
+
+# 🔥 KESIMPULAN FINAL
+
+Masalah diagram shift kamu bukan di diagram.js doang.
+
+Tapi:
+
+### 1. Parser kamu:
+
+* menganggap row spacing fixed (padahal dynamic)
+
+### 2. Data structure kamu:
+
+* belum punya "batch identity real"
+
+### 3. Diagram.js:
+
+* kemungkinan pakai index-based shift grouping
+
+---
+
+# 🚀 SOLUSI YANG BENER (high level)
+
+Kalau mau fix total:
+
+## Step 1 — Ubah model data
+
+```js
+{
+  mesin,
+  batch,
+  tanggal,
+  shift,
+  output
+}
+```
+
+## Step 2 — flatten benar-benar time-series
+
+## Step 3 — diagram.js hanya:
+
+```js
+group by mesin + shift
+sum output
+```
+
+---
+
+# Kalau mau gue bisa bantu next step
+
+Kirim aja `diagram.js` kamu.
+
+Karena dari sini 90% masalahnya:
+
+> bukan di fetch, tapi di aggregation logic diagramnya
+
+Dan itu biasanya bug “shift index vs shift value mismatch” yang klasik banget.
+ , 
+Oke, ini jelas — dari CSV + engine yang lu kirim, gue bisa bilang:
+
+### 🔎 Jawaban cepat
+
+Analisa sebelumnya **belum bisa dianggap final** kalau tujuan lu adalah debugging akurasi parsing & mapping data.
+
+Yang lu punya sekarang itu:
+
+* CSV **berantakan (merged-style export dari Google Sheets)**
+* Engine lu **cukup advanced**, tapi:
+
+  * masih sangat tergantung struktur row yang konsisten
+  * rawan geser kalau ada blank/merge/cuci mesin/off
+  * shift detection & batch jump bisa “false align”
+
+---
+
+# ⚠️ Masalah utama yang keliatan dari CSV lu
+
+## 1. Struktur block mesin tidak konsisten
+
+Contoh:
+
+```
+JINSUNG 1
+KODE PRODUK1
+NO BATCH
+OUTPUT
+NC SACHET
+KODE PRODUK (lagi)
+NO BATCH (lagi)
+OUTPUT (lagi)
+```
+
+👉 Ini bukan format tabel normal, tapi **semi-block + repeating section**
+
+Engine lu sekarang:
+
+```js
+let lompatanBaris = 7; // atau 11 untuk JINSUNG
+r += lompatanBaris;
+```
+
+### ❌ Problem:
+
+* kalau ada `OFF`, `CUCI MESIN`, atau row kosong
+* offset ini langsung geser semua parsing berikutnya
+
+---
+
+## 2. Shift logic = fragile
+
+Lu pakai:
+
+```js
+rowShift[col] || backtrack ke kiri
+```
+
+### ⚠️ Risiko:
+
+Di CSV lu banyak:
+
+* merged header shift
+* blank column panjang
+* shift cuma muncul di awal block
+
+👉 ini bikin shift assignment bisa “ketarik dari cell sebelumnya”
+
+---
+
+## 3. Tanggal + shift sebenarnya bukan per-row real
+
+Di CSV:
+
+```
+TANGGAL row (header horizontal)
+SHIFT row (header horizontal)
+```
+
+Tapi data produksi:
+
+* vertical block per mesin
+* horizontal per hari
+
+👉 ini hybrid matrix (ini yang bikin parsing susah)
+
+---
+
+## 4. Output parsing aman, tapi sumbernya raw
+
+Ini aman:
+
+```js
+let valOutput = parseFloat(det.output)
+```
+
+Tapi problemnya:
+
+* kalau mapping shift/tanggal salah → output jadi “benar tapi salah tempat”
+
+---
+
+# 🧠 Kesimpulan teknis
+
+### Engine lu sekarang:
+
+✔ sudah bisa baca multi mesin
+✔ sudah bisa batch split
+✔ sudah ada target ratio logic
+✔ sudah ada caching
+
+### Tapi belum robust untuk:
+
+❌ merged header CSV (Google Sheets export style)
+❌ row offset dynamic (OFF / CUCI MESIN / blank noise)
+❌ shift alignment guarantee
+❌ machine block detection 100% reliable
+
+---
+
+# 🚨 Jadi jawaban pertanyaan lu:
+
+> “perlu file lain buat debugging gak?”
+
+### ✔ YES — ini yang paling penting:
+
+Kalau mau bener-bener fix, gue butuh salah satu:
+
+## 1. Versi Google Sheet asli (ideal)
+
+atau export:
+
+* “Show formula / clean view”
+* bukan export CSV
+
+## 2. Atau minimal:
+
+👉 1 mesin full block dalam bentuk:
+
+* 10–15 row mentah (tanpa dipotong)
+* plus screenshot struktur sheet
+
+## 3. Bonus (kalau bisa):
+
+* contoh “expected output” 1 mesin
+  (biar gue bisa compare mapping)
+
+---
+
+# 🔧 Saran jujur (biar gak makin sakit debugging)
+
+Kalau ini sistem bakal dipakai jangka panjang:
+
+### ⚠️ Lo harus ubah mindset parsing:
+
+Jangan pakai:
+
+> “lompat baris per mesin”
+
+Tapi:
+
+> “detect block by keyword + stop condition”
+
+Contoh logic yang lebih stabil:
+
+* start: `JINSUNG / SIG / ILAPAK`
+* end: next machine OR empty 3 row OR header repeat
+* ignore: `OFF / CUCI MESIN`
+
+---
+
+# 💬 Kalau mau gue bantu next step
+
+Gue bisa bantu upgrade parser lu jadi:
+
+### 🔥 versi robust:
+
+* auto block detection (no fixed lompatanBaris)
+* shift & date reconstruction cleaner
+* ignore noise row otomatis
+* fallback mapping kalau column merge rusak
+
+Tinggal bilang:
+
+> “upgrade parser ke versi robust”
+
+atau kirim:
+
+* 1 mesin full raw (JINSUNG 1 aja cukup)
+
+Nanti gue bedah sampai stabil.

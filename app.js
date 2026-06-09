@@ -261,7 +261,8 @@ function renderDropdowns(payload) {
     const mesinSelect = document.getElementById('filter-mesin');
     
     if (bulanSelect) {
-        bulanSelect.innerHTML = `<option value="all" ${payload.bulanFilter === 'all' ? 'selected' : ''}>-- Semua Bulan --</option>`;
+        // PERBAIKAN: Opsi "-- Semua Bulan --" telah dihapus dari baris ini
+        bulanSelect.innerHTML = ``;
         payload.listBulan.forEach(b => {
             bulanSelect.innerHTML += `<option value="${b}" ${payload.bulanFilter === b ? 'selected' : ''}>${b}</option>`;
         });
@@ -372,7 +373,11 @@ function renderDashboardTable(payload) {
 async function initApp() {
     const urlParams = new URLSearchParams(window.location.search);
     
-    const filterBulan = urlParams.get('bulan') || getNamaBulanSekarang();
+    // PERBAIKAN: Jika parameter 'bulan' bernilai 'all' atau tidak ada, langsung arahkan default ke bulan saat ini
+    let filterBulan = urlParams.get('bulan');
+    if (!filterBulan || filterBulan === 'all') {
+        filterBulan = getNamaBulanSekarang();
+    }
     const filterMesin = urlParams.get('mesin') || 'all';
 
     const filterForm = document.querySelector('.filter-form');

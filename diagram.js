@@ -55,9 +55,17 @@ function cleanNamaMesin(str) {
   }).join(' ');
 }
 
+function normalizeShift(rawShift) {
+  if (!rawShift) return "";
+  let clean = rawShift.toString().trim().toUpperCase();
+  clean = clean.replace(/SHIFT\s*/g, ""); 
+  return clean;
+}
+
 async function fetchAndParseSheets(targetBulan = "all") {
   let semuaPencapaian = [];
   const daftarBulanYangDiambil = targetBulan === "all" ? Object.entries(CONFIG.sheetGids) : Object.entries(CONFIG.sheetGids).filter(([namaBulan]) => namaBulan === targetBulan);
+  
   for (const [namaBulan, gid] of daftarBulanYangDiambil) {
     try {
       const url = CONFIG.baseUrl + gid;
@@ -70,6 +78,8 @@ async function fetchAndParseSheets(targetBulan = "all") {
       const rowTanggal = records[1];
       const rowShift = records[2];
       const totalKolom = rowShift.length;
+
+      const seen = new Set();
 
       for (let r = 3; r < totalBaris; r++) {
         let cellKolomA = records[r][0]?.trim() || "";
@@ -114,10 +124,16 @@ async function fetchAndParseSheets(targetBulan = "all") {
                   pointerCol--;
                 }
               }
-              let shiftKerja = "1";
-              if (col < rowShift.length && rowShift[col]?.trim() !== "") {
-                shiftKerja = rowShift[col].trim();
-              }
+              
+              let rawShiftValue = (col < rowShift.length) ? rowShift[col] : "";
+              let shiftKerja = normalizeShift(rawShiftValue);
+
+              if (!shiftKerja) continue;
+
+              const uniqueKey = `${namaMesinBersih}-${b.label}-${currentTanggal}-${col}-${shiftKerja}`;
+              if (seen.has(uniqueKey)) continue;
+              seen.add(uniqueKey);
+
               let kodeProduk = col < records[kodeRow]?.length ? records[kodeRow][col]?.trim() : "";
               let noBatch = col < records[batchRow]?.length ? records[batchRow][col]?.trim() : "";
               let valOutput = col < records[outputRow]?.length ? records[outputRow][col]?.trim() : "0";
@@ -138,12 +154,15 @@ async function fetchAndParseSheets(targetBulan = "all") {
                 output: valOutput
               });
             }
-            semuaPencapaian.push({
-              bulan: namaBulan,
-              mesin: namaMesinBersih,
-              nama_batch: b.label,
-              details: listDetails
-            });
+
+            if (listDetails.length > 0) {
+              semuaPencapaian.push({
+                bulan: namaBulan,
+                mesin: namaMesinBersih,
+                nama_batch: b.label,
+                details: listDetails
+              });
+            }
           }
           r += lompatanBaris;
         }
@@ -214,9 +233,6 @@ function showLoadingState(isLoading, customMessage = "Sedang Memuat Data Produks
   }
 }
 
-// ==========================================
-// REAL-TIME DATE LOGIC & FALLBACK
-// ==========================================
 function getSystemDefaultDate(dataMentah) {
   let semuaTanggal = new Set();
   dataMentah.forEach(item => {
@@ -239,13 +255,11 @@ function getSystemDefaultDate(dataMentah) {
   const thnRiilStr = hariIni.getFullYear();
   const formatTanggalRiil = `${tglRiilPad}/${blnRiilPad}/${thnRiilStr}`;
 
-  // Cek apakah tanggal hari ini ada di dalam sheet aktif komputer operator
   let matchTanggal = sortedDates.find(d => d === formatTanggalRiil);
 
   if (matchTanggal) {
     return { bulan: bulanRiilStr, tanggal: matchTanggal };
   } else {
-    // FIX LOGIC: Jika membuka bulan yang sudah lewat/selesai (finished month), set default ke "all" (Semua Tanggal)
     return { bulan: bulanRiilStr, tanggal: "all" };
   }
 }
@@ -280,11 +294,7 @@ function processDiagramData(dataMentah, bulanFilter, mesinFilter, tanggalFilter,
           total_output: 0,
           produk: new Set(),
           batch: new Set(),
-          shifts: {
-            "1": { output: 0, produk: new Set() },
-            "2": { output: 0, produk: new Set() },
-            "3": { output: 0, produk: new Set() }
-          }
+          records_murni: []
         };
       }
 
@@ -300,11 +310,12 @@ function processDiagramData(dataMentah, bulanFilter, mesinFilter, tanggalFilter,
           if (det.kode_produk && det.kode_produk !== "-") node.produk.add(det.kode_produk);
           if (det.no_batch && det.no_batch !== "-") node.batch.add(det.no_batch);
 
-          const sKey = String(det.shift).trim();
-          if (node.shifts[sKey]) {
-            node.shifts[sKey].output += outVal;
-            if (det.kode_produk && det.kode_produk !== "-") node.shifts[sKey].produk.add(det.kode_produk);
-          }
+          node.records_murni.push({
+            tanggal: det.tanggal,
+            shift: String(det.shift).trim(),
+            kode_produk: det.kode_produk,
+            output: outVal
+          });
         });
       }
     }
@@ -321,18 +332,33 @@ function processDiagramData(dataMentah, bulanFilter, mesinFilter, tanggalFilter,
     let totalDesimalCapaian = 0;
     let rincianShiftFinal = {};
 
-    Object.keys(node.shifts).forEach(sKey => {
-      const shiftData = node.shifts[sKey];
-      const arrProd = Array.from(shiftData.produk);
-      const prodAktif = arrProd.length > 0 ? arrProd[0] : null;
-      const pembagi = (prodAktif && masterTarget[prodAktif]) ? masterTarget[prodAktif] : 31250;
-      let rasioShift = 0;
+    ["1", "2", "3"].forEach(sKey => {
+      let totalOutputShift = 0;
+      let totalRasioShift = 0;
+      let pembagiTargetUtama = 31250; 
 
-      if (shiftData.output > 0) {
-        rasioShift = shiftData.output / pembagi;
-        totalDesimalCapaian += rasioShift;
-      }
-      rincianShiftFinal[sKey] = { output: shiftData.output, target: pembagi, rasio: rasioShift };
+      const filterRecordsShift = node.records_murni.filter(
+        r => String(r.shift).trim() === String(sKey).trim()
+      );
+      
+      filterRecordsShift.forEach(rec => {
+        totalOutputShift += rec.output;
+        if (rec.output > 0) {
+          const pembagi = (rec.kode_produk && rec.kode_produk !== "-" && masterTarget[rec.kode_produk]) ? masterTarget[rec.kode_produk] : 31250;
+          if (rec.kode_produk && rec.kode_produk !== "-" && masterTarget[rec.kode_produk]) {
+            pembagiTargetUtama = masterTarget[rec.kode_produk];
+          }
+          totalRasioShift += (rec.output / pembagi);
+        }
+      });
+
+      totalDesimalCapaian += totalRasioShift;
+
+      rincianShiftFinal[sKey] = { 
+        output: totalOutputShift, 
+        target: pembagiTargetUtama, 
+        rasio: totalRasioShift 
+      };
     });
 
     chartLabels.push(namaMesin);
@@ -386,20 +412,55 @@ function renderDropdowns(payload, bulanActive, mesinActive, tanggalActive) {
   if (btnDashboard) btnDashboard.href = `index.html?bulan=${bulanActive}&mesin=${mesinActive}&tanggal=${tanggalActive}`;
 }
 
-function showDrillDownModal(detail, tanggalActive) {
+function showDrillDownModal(detail, tanggalActive, bulanActive) {
   const modal = document.getElementById('drilldown-modal');
   if (!modal) return;
-  let tglLabel = (tanggalActive && tanggalActive !== "all") ? tanggalActive : "Semua Tanggal";
+  
+  // Logic Perubahan Judul Deskripsi Sesuai Filter Tanggal/Bulan
+  let tglLabel = "";
+  if (tanggalActive && tanggalActive !== "all") {
+    tglLabel = tanggalActive; // Mode tanggal tunggal murni bawaan awal
+  } else {
+    if (bulanActive === "all") {
+      tglLabel = "Output Total 2026"; // Mode semua bulan
+    } else {
+      tglLabel = `Output Total ${bulanActive}`; // Mode semua tanggal di bulan tertentu
+    }
+  }
 
   document.getElementById('modal-mesin-title').innerText = `${detail.mesin} (${tglLabel})`;
   document.getElementById('modal-kode-produk').innerText = detail.produk;
-  document.getElementById('modal-kode-batch').innerText = detail.batch;
+  
+  // Handle Batch Bengkak jika menggunakan mode "Semua Bulan"
+  const batchContainer = document.getElementById('modal-kode-batch');
+  if (bulanActive === "all") {
+    // Potong tampilan awal dan buat interaksi klik untuk ekspansi
+    batchContainer.innerHTML = `
+      <div id="batch-short-text" style="line-height: 1.5;">
+        ${detail.batch.substring(0, 120)}... 
+        <button id="btn-expand-batch" style="background: #0ea5e9; color: white; border: none; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; margin-left: 4px; font-weight: bold;">... (Lihat Semua)</button>
+      </div>
+      <div id="batch-full-text" style="display: none; max-height: 150px; overflow-y: auto; background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; margin-top: 5px; word-break: break-all; line-height: 1.6;">
+        ${detail.batch}
+      </div>
+    `;
+    
+    document.getElementById('btn-expand-batch').onclick = function() {
+      document.getElementById('batch-short-text').style.display = 'none';
+      document.getElementById('batch-full-text').style.display = 'block';
+    };
+  } else {
+    // Mode normal diluar Semua Bulan, tampilkan apa adanya secara utuh
+    batchContainer.style.maxHeight = "none";
+    batchContainer.style.overflowY = "visible";
+    batchContainer.innerText = detail.batch;
+  }
 
   for (let s = 1; s <= 3; s++) {
     const sData = detail.shifts[String(s)];
     const rowOutput = document.getElementById(`modal-shift${s}-output`);
     if (sData && sData.output > 0) {
-      rowOutput.innerHTML = `<strong>Shift ${s}:</strong> ${sData.output.toLocaleString('id-ID')} / ${sData.target.toLocaleString('id-ID')} = <span style="color:#0ea5e9; font-weight:bold;">${sData.rasio.toFixed(2)}</span>`;
+      rowOutput.innerHTML = `<strong>Shift ${s}:</strong> ${sData.output.toLocaleString('id-ID')} Box <span style="color:#64748b; font-weight:normal;">|</span> <span style="color:#0ea5e9; font-weight:bold;">${sData.rasio.toFixed(2)} Batch</span>`;
     } else {
       rowOutput.innerHTML = `<strong>Shift ${s}:</strong> <span style="color:#94a3b8; font-style:italic;">No Data</span>`;
     }
@@ -407,11 +468,12 @@ function showDrillDownModal(detail, tanggalActive) {
 
   let totalCapaian = 0;
   Object.keys(detail.shifts).forEach(k => totalCapaian += detail.shifts[k].rasio);
-  document.getElementById('modal-total-output').innerText = `${totalCapaian.toFixed(2)}`;
+  
+  document.getElementById('modal-total-output').innerText = `${detail.total_output.toLocaleString('id-ID')} Box (${totalCapaian.toFixed(2)} Batch)`;
   modal.style.display = 'flex';
 }
 
-function renderChartUI(payload, tanggalActive) {
+function renderChartUI(payload, tanggalActive, bulanActive) {
   const ctx = document.getElementById('canvas-diagram');
   const emptyStateEl = document.getElementById('chart-empty-state');
   if (!ctx) return;
@@ -464,7 +526,7 @@ function renderChartUI(payload, tanggalActive) {
           const activeElement = elements[0];
           const dataIndex = activeElement.index;
           const selectedDetail = payload.metaDetails[dataIndex];
-          showDrillDownModal(selectedDetail, tanggalActive);
+          showDrillDownModal(selectedDetail, tanggalActive, bulanActive);
         }
       },
       scales: {
@@ -530,11 +592,11 @@ async function initDiagram() {
   let filterMesin = urlParams.get('mesin') || 'all';
   let filterTanggal = urlParams.get('tanggal');
 
-  if (!filterBulan || filterBulan === 'all') {
+  if (!filterBulan) {
     filterBulan = getRealTimeMonth();
   }
 
-  showLoadingState(true, `Sedang Menyelaraskan Data Bulan ${filterBulan}...`);
+  showLoadingState(true, `Sedang Memuat Data Bulan ${filterBulan === 'all' ? 'Semua Bulan' : filterBulan}...`);
 
   let dataMentah = [];
   const urutanBulanUrut = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
@@ -570,7 +632,7 @@ async function initDiagram() {
   let payload = processDiagramData(dataMentah, filterBulan, filterMesin, filterTanggal, masterTarget);
 
   renderDropdowns(payload, filterBulan, filterMesin, filterTanggal);
-  renderChartUI(payload, filterTanggal);
+  renderChartUI(payload, filterTanggal, filterBulan);
   setupMidnightAutoRefresh();
 
   const closeBtn = document.getElementById('close-modal-btn');
@@ -591,7 +653,6 @@ async function initDiagram() {
 
         showLoadingState(true, `Sedang Memperbarui Grafik Analisis...`);
 
-        // FIX LOGIC INTERAKSI FILTER: Jika operator merubah opsi filter 'Bulan', paksa filter tanggal kembali ke "all" (Semua Tanggal) agar data bulan baru langsung ke-render full.
         if (input.id === 'filter-bulan') {
           currentTanggal = 'all';
         }
@@ -636,7 +697,7 @@ async function initDiagram() {
 
         const currentPayload = processDiagramData(dataFilterBulan, currentBulan, currentMesin, currentTanggal, masterTarget);
         renderDropdowns(currentPayload, currentBulan, currentMesin, currentTanggal);
-        renderChartUI(currentPayload, currentTanggal);
+        renderChartUI(currentPayload, currentTanggal, currentBulan);
       };
     });
   });
