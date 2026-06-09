@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Diagram Pencapaian Mesin Harian</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    body {
+      background-color: #f1f5f9;
+      color: #1e293b;
+      padding: 20px;
+    }
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    /* Header Style */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+      margin-bottom: 20px;
+    }
+    .header-title h1 {
+      font-size: 20px;
+      color: #0f172a;
+    }
+    .header-title p {
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .header-action {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-secondary {
+      color: white;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 14px;
+      transition: background 0.2s, transform 0.1s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-secondary:active {
+      transform: scale(0.98);
+    }
+    /* Warna Khusus Tombol Sesuai Standard Dashboard */
+    .btn-pencapaian {
+      background-color: #4f46e5;
+    }
+    .btn-pencapaian:hover {
+      background-color: #4338ca;
+    }
+    .btn-dashboard {
+      background-color: #0ea5e9;
+    }
+    .btn-dashboard:hover {
+      background-color: #0284c7;
+    }
+    .btn-refresh {
+      background-color: #10b981;
+    }
+    .btn-refresh:hover {
+      background-color: #059669;
+    }
+    /* Filter Card Style */
+    .filter-card {
+      background: white;
+      padding: 16px 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+      margin-bottom: 20px;
+    }
+    .filter-form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .filter-group label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #475569;
+    }
+    .filter-group select {
+      padding: 6px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      outline: none;
+      background-color: #f8fafc;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    /* Chart Card Style */
+    .chart-card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+      padding: 24px;
+      position: relative;
+    }
+    .card-header {
+      margin-bottom: 20px;
+      border-bottom: 1px solid #f1f5f9;
+      padding-bottom: 12px;
+    }
+    .card-header h2 {
+      font-size: 16px;
+      color: #1e293b;
+    }
+    /* Wrapper Canvas Chart agar Responsif */
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 60vh;
+      min-height: 400px;
+    }
+    /* State jika data kosong atau memuat data pada tanggal filter */
+    #chart-empty-state {
+      display: none;
+      text-align: center;
+      padding: 80px 20px;
+      color: #64748b;
+    }
+    #chart-empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+    /* ========================================== 
+       DRILL-DOWN MODAL STYLES (POP-UP) 
+       ========================================== */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    .modal-content {
+      background: white;
+      width: 100%;
+      max-width: 550px;
+      border-radius: 14px;
+      box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+      animation: modalFadeIn 0.25s ease-out;
+      overflow: hidden;
+    }
+    @keyframes modalFadeIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .modal-header {
+      background-color: #0f172a;
+      color: white;
+      padding: 18px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .modal-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: #94a3b8;
+      font-size: 22px;
+      cursor: pointer;
+      transition: color 0.2s;
+      line-height: 1;
+    }
+    .close-btn:hover {
+      color: white;
+    }
+    .modal-body {
+      padding: 24px;
+    }
+    .meta-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+      background-color: #f8fafc;
+      padding: 14px;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .meta-item label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #64748b;
+      margin-bottom: 2px;
+      font-weight: 600;
+    }
+    .meta-item span {
+      font-size: 14px;
+      color: #1e293b;
+      font-weight: 600;
+      word-break: break-all;
+    }
+    .shift-details-container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .shift-row {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #334155;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .shift-row span {
+      font-family: inherit;
+    }
+    .total-summary-card {
+      background: linear-gradient(135deg, #0ea5e9, #0284c7);
+      color: white;
+      padding: 14px 20px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+      box-shadow: 0 4px 6px -1px rgba(14, 165, 233, 0.2);
+    }
+    .total-summary-card .value {
+      font-size: 18px;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <header class="dashboard-header">
+      <div class="header-title">
+        <h1>📊 Grafik Pencapaian Antar Mesin</h1>
+      </div>
+      <div class="header-action">
+        <a href="pencapaian.html" class="btn-pencapaian btn-secondary">📋 Lihat Pencapaian</a>
+        <a href="index.html" class="btn-dashboard btn-secondary">🏠 Dashboard</a>
+        <button type="button" class="btn-refresh btn-secondary">🔄 Sync & Refresh</button>
+      </div>
+    </header>
+
+    <main class="dashboard-content">
+      <div class="filter-card">
+        <form class="filter-form" onsubmit="event.preventDefault();">
+          <div class="filter-group">
+            <label for="filter-bulan">Bulan:</label>
+            <select id="filter-bulan" name="bulan">
+              <option value="all">-- Semua Bulan --</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-tanggal">Tanggal Kerja:</label>
+            <select id="filter-tanggal" name="tanggal">
+              <option value="all">-- Semua Tanggal --</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label for="filter-mesin">Mesin:</label>
+            <select id="filter-mesin" name="mesin">
+              <option value="all">-- Semua Mesin --</option>
+            </select>
+          </div>
+        </form>
+      </div>
+
+      <div class="chart-card">
+        <div class="chart-container">
+          <canvas id="canvas-diagram"></canvas>
+          <div id="chart-empty-state">
+            <div class="icon">📭</div>
+            <h3>Tidak Ada Aktivitas Produksi</h3>
+            <p style="font-size: 13px; margin-top: 6px;">Silakan pilih kombinasi tanggal atau bulan lain pada filter di atas.</p>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div id="drilldown-modal" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-mesin-title">Nama Mesin (Tanggal)</h3>
+        <button type="button" id="close-modal-btn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="meta-info-grid">
+          <div class="meta-item">
+            <label>Kode Produk</label>
+            <span id="modal-kode-produk">-</span>
+          </div>
+          <div class="meta-item">
+            <label>No. Batch</label>
+            <span id="modal-kode-batch">-</span>
+          </div>
+        </div>
+        <div class="shift-details-container">
+          <div class="shift-row" id="modal-shift1-output"></div>
+          <div class="shift-row" id="modal-shift2-output"></div>
+          <div class="shift-row" id="modal-shift3-output"></div>
+        </div>
+        <div class="total-summary-card">
+          <span>Total Output Akumulatif</span>
+          <span id="modal-total-output" class="value">0.00</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <script src="diagram.js"></script>
+</body>
+</html>
