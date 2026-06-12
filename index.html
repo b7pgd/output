@@ -9,13 +9,14 @@
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
         }
 
         body {
-            background-color: #f1f5f9;
-            color: #1e293b;
-            padding: 20px;
+            background-color: #f8fafc; /* Warna dasar dashboard SEO premium yang bersih */
+            color: #0f172a;
+            padding: 24px;
+            -webkit-font-smoothing: antialiased;
         }
 
         .app-container {
@@ -23,48 +24,57 @@
             margin: 0 auto;
         }
 
+        /* Header Style - SEO Dashboard Style */
         .dashboard-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             background: white;
-            padding: 20px;
+            padding: 20px 24px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
             margin-bottom: 20px;
         }
 
         .header-title h1 {
             font-size: 20px;
             color: #0f172a;
-        }
-        
-        .header-title p {
-            font-size: 13px;
-            color: #64748b;
-            margin-top: 4px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
         }
 
+        /* Action Buttons Wrapper */
         .header-action {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 8px;
+            flex-wrap: wrap; /* Mencegah tombol keluar layar di mobile */
+        }
+
+        .btn-secondary, .btn-success, .btn-sync {
+            color: white;
+            text-decoration: none;
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 13.5px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+
+        .btn-secondary:active, .btn-success:active, .btn-sync:active {
+            transform: scale(0.97);
         }
 
         /* Tombol 1: Lihat Grafik (Indigo) */
         .btn-secondary {
             background-color: #4f46e5;
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: background 0.2s;
-            display: inline-flex;
-            align-items: center;
-            border: none;
-            cursor: pointer;
         }
 
         .btn-secondary:hover {
@@ -74,15 +84,6 @@
         /* Tombol 2: Lihat Pencapaian (Emerald Green) */
         .btn-success {
             background-color: #10b981;
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: background 0.2s;
-            display: inline-flex;
-            align-items: center;
         }
 
         .btn-success:hover {
@@ -92,76 +93,73 @@
         /* Tombol 3: Sync & Refresh (Blue) */
         .btn-sync {
             background-color: #2563eb;
-            color: white;
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 14px;
-            transition: background 0.2s;
-            display: inline-flex;
-            align-items: center;
-            border: none;
-            cursor: pointer;
         }
 
         .btn-sync:hover {
             background-color: #1d4ed8;
         }
 
-        /* Filter Style */
+        /* Filter Card Style - Bersih & Bergaris Tegas */
         .filter-card {
             background: white;
-            padding: 16px 20px;
+            padding: 18px 24px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
             margin-bottom: 20px;
         }
 
         .filter-form {
             display: flex;
             flex-wrap: wrap;
-            gap: 20px;
+            gap: 24px;
             align-items: center;
         }
 
         .filter-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .filter-group label {
-            font-size: 14px;
-            font-weight: 500;
+            font-size: 13.5px;
+            font-weight: 600;
             color: #475569;
+            white-space: nowrap;
         }
 
         .filter-group select {
-            padding: 6px 12px;
+            padding: 8px 32px 8px 12px;
             border: 1px solid #cbd5e1;
-            border-radius: 6px;
+            border-radius: 8px;
             outline: none;
-            background-color: #f8fafc;
+            background-color: #ffffff;
+            color: #0f172a;
             cursor: pointer;
+            font-size: 13.5px;
+            font-weight: 500;
+            transition: border-color 0.15s ease;
+            min-width: 180px;
+            appearance: none; /* Menghilangkan panah default browser */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2364748b' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19.5 8.25l-7.5 7.5-7.5-7.5'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 14px;
         }
 
-        /* Table Style */
+        .filter-group select:focus {
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 1px #4f46e5;
+        }
+
+        /* Table Card Style */
         .table-card {
             background: white;
             border-radius: 12px;
-            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
             overflow: hidden;
-        }
-
-        .card-header {
-            padding: 16px 20px;
-            border-bottom: 1px solid #f1f5f9;
-        }
-
-        .card-header h2 {
-            font-size: 16px;
-            color: #1e293b;
         }
 
         .table-responsive {
@@ -173,15 +171,15 @@
             width: 100%;
             border-collapse: collapse;
             text-align: left;
-            font-size: 14px;
+            font-size: 13.5px;
             white-space: nowrap;
         }
 
         .styled-table th {
             background-color: #f8fafc;
-            color: #64748b;
+            color: #475569;
             font-weight: 600;
-            padding: 10px 16px;
+            padding: 12px 16px;
             border-bottom: 1px solid #e2e8f0;
             border-right: 1px solid #e2e8f0;
             position: sticky;
@@ -193,9 +191,10 @@
         .styled-table tr:first-child th {
             top: 0;
             z-index: 12;
-            background-color: #e2e8f0;
+            background-color: #f1f5f9;
             color: #1e3a8a;
             font-size: 13px;
+            font-weight: 700;
         }
 
         /* TH Nama Mesin & Batch - Pojok Kiri Atas Cross-Sticky */
@@ -204,33 +203,36 @@
             left: 0;
             top: 0;
             z-index: 30;
-            background-color: #cbd5e1;
-            border-right: 2px solid #94a3b8;
+            background-color: #e2e8f0;
+            border-right: 2px solid #cbd5e1;
             color: #0f172a;
+            font-weight: 700;
         }
 
         /* Header shift di baris bawah sticky */
         .styled-table tr:nth-child(2) th {
-            top: 38px;
+            top: 41px; /* Disesuaikan tinggi padding baru */
             z-index: 11;
             border-bottom: 2px solid #cbd5e1;
         }
 
         .styled-table td {
-            padding: 10px 16px;
-            border-bottom: 1px solid #f1f5f9;
-            border-right: 1px solid #f1f5f9;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            border-right: 1px solid #e2e8f0;
             color: #334155;
             vertical-align: middle;
         }
 
-        /* Mengamankan efek sticky kolom nama mesin pada tbody td pertama secara global */
+        /* Kolom nama mesin pada tbody td pertama secara global */
         .styled-table tbody tr td.sticky-col {
             position: sticky;
             left: 0;
             z-index: 5;
             background-color: #ffffff !important;
             border-right: 2px solid #cbd5e1 !important;
+            font-weight: 600;
+            color: #0f172a;
         }
 
         .styled-table tbody tr:hover {
@@ -242,9 +244,9 @@
             background-color: #f1f5f9 !important;
         }
 
-        /* Garis pemisah hitam horizontal antar kelompok mesin memanjang penuh */
+        /* Garis pemisah horizontal antar kelompok mesin memanjang penuh */
         .styled-table tbody tr.machine-group-end td {
-            border-bottom: 2px solid #000000 !important;
+            border-bottom: 2px solid #0f172a !important;
         }
 
         /* Box cell horizontal data */
@@ -253,7 +255,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-width: 90px;
+            min-width: 100px;
             text-align: center;
         }
 
@@ -261,34 +263,89 @@
             font-size: 11px;
             font-weight: 700;
             color: #1e293b;
-            background: #e2e8f0;
+            background: #f1f5f9;
+            border: 1px solid #e2e8f0;
             padding: 2px 6px;
             border-radius: 4px;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
             max-width: 100px;
             overflow: hidden;
             text-overflow: ellipsis;
+            letter-spacing: 0.3px;
         }
 
+        /* FIXED FRONTEND: Mengganti font monospace kaku menjadi sans-serif yang tegas & tebal */
         .badge-batch {
             font-size: 11px;
-            font-family: monospace;
+            font-family: system-ui, -apple-system, sans-serif;
+            font-weight: 700;
             color: #2563eb;
             background: #eff6ff;
-            padding: 1px 4px;
+            border: 1px solid #dbeafe;
+            padding: 2px 6px;
             border-radius: 4px;
             margin-bottom: 4px;
+            letter-spacing: 0.2px;
         }
 
         .output-value {
-            font-size: 14px;
+            font-size: 13.5px;
             font-weight: 700;
             color: #0f172a;
         }
 
         .img-empty {
-            background-color: #fafafa;
-            opacity: 0.6;
+            background-color: #f8fafc;
+            opacity: 0.5;
+        }
+
+        /* MEDIA QUERIES - OPTIMASI MOBILE / HP */
+        @media (max-width: 768px) {
+            body {
+                padding: 12px; /* Perkecil margin luar di HP */
+            }
+            .dashboard-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+                padding: 16px;
+            }
+            .header-action {
+                width: 100%;
+                display: grid;
+                grid-template-columns: 1fr; /* Tombol bertumpuk rapi penuh kebawah */
+                gap: 8px;
+            }
+            .btn-secondary, .btn-success, .btn-sync {
+                justify-content: center; /* Teks tombol center di HP */
+                width: 100%;
+                padding: 11px;
+            }
+            .filter-card {
+                padding: 16px;
+            }
+            .filter-form {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+                width: 100%;
+            }
+            .filter-group {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 6px;
+                width: 100%;
+            }
+            .filter-group label {
+                font-size: 13px;
+            }
+            .filter-group select {
+                width: 100%;
+                max-width: 100%;
+            }
+            .table-responsive {
+                max-height: 65vh; /* Sesuaikan kapasitas scroll area tabel di HP */
+            }
         }
     </style>
 </head>
@@ -336,7 +393,7 @@
                         </thead>
                         <tbody>
                             <tr>
-                                <td colspan="100" style="text-align:center; padding: 40px; color: #64748b;">
+                                <td colspan="100" style="text-align:center; padding: 40px; color: #64748b; font-weight: 500;">
                                     Memuat data dari Google Sheets cloud...
                                 </td>
                             </tr>
@@ -350,4 +407,3 @@
     <script src="app.js"></script>
 </body>
 </html>
-

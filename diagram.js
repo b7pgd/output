@@ -412,67 +412,6 @@ function renderDropdowns(payload, bulanActive, mesinActive, tanggalActive) {
   if (btnDashboard) btnDashboard.href = `index.html?bulan=${bulanActive}&mesin=${mesinActive}&tanggal=${tanggalActive}`;
 }
 
-function showDrillDownModal(detail, tanggalActive, bulanActive) {
-  const modal = document.getElementById('drilldown-modal');
-  if (!modal) return;
-  
-  // Logic Perubahan Judul Deskripsi Sesuai Filter Tanggal/Bulan
-  let tglLabel = "";
-  if (tanggalActive && tanggalActive !== "all") {
-    tglLabel = tanggalActive; // Mode tanggal tunggal murni bawaan awal
-  } else {
-    if (bulanActive === "all") {
-      tglLabel = "Output Total 2026"; // Mode semua bulan
-    } else {
-      tglLabel = `Output Total ${bulanActive}`; // Mode semua tanggal di bulan tertentu
-    }
-  }
-
-  document.getElementById('modal-mesin-title').innerText = `${detail.mesin} (${tglLabel})`;
-  document.getElementById('modal-kode-produk').innerText = detail.produk;
-  
-  // Handle Batch Bengkak jika menggunakan mode "Semua Bulan"
-  const batchContainer = document.getElementById('modal-kode-batch');
-  if (bulanActive === "all") {
-    // Potong tampilan awal dan buat interaksi klik untuk ekspansi
-    batchContainer.innerHTML = `
-      <div id="batch-short-text" style="line-height: 1.5;">
-        ${detail.batch.substring(0, 120)}... 
-        <button id="btn-expand-batch" style="background: #0ea5e9; color: white; border: none; padding: 2px 8px; font-size: 11px; border-radius: 4px; cursor: pointer; margin-left: 4px; font-weight: bold;">... (Lihat Semua)</button>
-      </div>
-      <div id="batch-full-text" style="display: none; max-height: 150px; overflow-y: auto; background: #f8fafc; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 12px; margin-top: 5px; word-break: break-all; line-height: 1.6;">
-        ${detail.batch}
-      </div>
-    `;
-    
-    document.getElementById('btn-expand-batch').onclick = function() {
-      document.getElementById('batch-short-text').style.display = 'none';
-      document.getElementById('batch-full-text').style.display = 'block';
-    };
-  } else {
-    // Mode normal diluar Semua Bulan, tampilkan apa adanya secara utuh
-    batchContainer.style.maxHeight = "none";
-    batchContainer.style.overflowY = "visible";
-    batchContainer.innerText = detail.batch;
-  }
-
-  for (let s = 1; s <= 3; s++) {
-    const sData = detail.shifts[String(s)];
-    const rowOutput = document.getElementById(`modal-shift${s}-output`);
-    if (sData && sData.output > 0) {
-      rowOutput.innerHTML = `<strong>Shift ${s}:</strong> ${sData.output.toLocaleString('id-ID')} Box <span style="color:#64748b; font-weight:normal;">|</span> <span style="color:#0ea5e9; font-weight:bold;">${sData.rasio.toFixed(2)} Batch</span>`;
-    } else {
-      rowOutput.innerHTML = `<strong>Shift ${s}:</strong> <span style="color:#94a3b8; font-style:italic;">No Data</span>`;
-    }
-  }
-
-  let totalCapaian = 0;
-  Object.keys(detail.shifts).forEach(k => totalCapaian += detail.shifts[k].rasio);
-  
-  document.getElementById('modal-total-output').innerText = `${detail.total_output.toLocaleString('id-ID')} Box (${totalCapaian.toFixed(2)} Batch)`;
-  modal.style.display = 'flex';
-}
-
 function renderChartUI(payload, tanggalActive, bulanActive) {
   const ctx = document.getElementById('canvas-diagram');
   const emptyStateEl = document.getElementById('chart-empty-state');
@@ -526,7 +465,9 @@ function renderChartUI(payload, tanggalActive, bulanActive) {
           const activeElement = elements[0];
           const dataIndex = activeElement.index;
           const selectedDetail = payload.metaDetails[dataIndex];
-          showDrillDownModal(selectedDetail, tanggalActive, bulanActive);
+          
+          // MENGALIHKAN KE HALAMAN BARU detail.html DENGAN PARAMETER SPESIFIK
+          window.location.href = `detail.html?mesin=${encodeURIComponent(selectedDetail.mesin)}&bulan=${encodeURIComponent(bulanActive)}&tanggal=${encodeURIComponent(tanggalActive)}`;
         }
       },
       scales: {
@@ -543,8 +484,16 @@ function renderChartUI(payload, tanggalActive, bulanActive) {
       plugins: {
         legend: { display: false },
         datalabels: {
-          color: '#1e293b', anchor: 'end', align: 'top', offset: 4, textAlign: 'center',
-          font: { size: 11, weight: 'bold', family: "'Segoe UI', sans-serif" },
+          color: '#1e293b',
+          anchor: 'end', 
+          align: 'top', 
+          offset: 6, 
+          textAlign: 'center',
+          font: { 
+            size: 14, 
+            weight: '800', 
+            family: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" 
+          },
           formatter: function(value, context) {
             const idx = context.dataIndex;
             const detail = payload.metaDetails[idx];
@@ -552,19 +501,7 @@ function renderChartUI(payload, tanggalActive, bulanActive) {
           }
         },
         tooltip: {
-          backgroundColor: '#0f172a', titleFont: { size: 14, weight: 'bold' }, bodyFont: { size: 12 }, padding: 14, cornerRadius: 8,
-          callbacks: {
-            label: function(context) {
-              const idx = context.dataIndex;
-              const detail = payload.metaDetails[idx];
-              return [
-                `📈 Pencapaian: ${context.parsed.y.toFixed(2)} batch`,
-                `📦 Total Output: ${Number(detail.total_output).toLocaleString('id-ID')} box`,
-                `🏷️ Prod: ${detail.produk}`,
-                `🔢 Batch: ${detail.batch}`
-              ];
-            }
-          }
+          enabled: false
         }
       }
     }
@@ -580,6 +517,9 @@ function setupMidnightAutoRefresh() {
     const now = new Date();
     if (now.getDate() !== currentSavedDay) {
       currentSavedDay = now.getDate();
+      sessionStorage.removeItem('saved_filter_bulan');
+      sessionStorage.removeItem('saved_filter_mesin');
+      sessionStorage.removeItem('saved_filter_tanggal');
       sessionStorage.clear();
       window.location.reload();
     }
@@ -588,9 +528,11 @@ function setupMidnightAutoRefresh() {
 
 async function initDiagram() {
   const urlParams = new URLSearchParams(window.location.search);
-  let filterBulan = urlParams.get('bulan');
-  let filterMesin = urlParams.get('mesin') || 'all';
-  let filterTanggal = urlParams.get('tanggal');
+  
+  // Cek apakah ada state yang tersimpan di sessionStorage, jika tidak baru ambil dari URL/Default
+  let filterBulan = sessionStorage.getItem('saved_filter_bulan') || urlParams.get('bulan');
+  let filterMesin = sessionStorage.getItem('saved_filter_mesin') || urlParams.get('mesin') || 'all';
+  let filterTanggal = sessionStorage.getItem('saved_filter_tanggal') || urlParams.get('tanggal');
 
   if (!filterBulan) {
     filterBulan = getRealTimeMonth();
@@ -628,19 +570,17 @@ async function initDiagram() {
     filterTanggal = sysDate.tanggal;
   }
 
+  // Simpan state valid pertama kali ke sessionStorage agar konsisten
+  sessionStorage.setItem('saved_filter_bulan', filterBulan);
+  sessionStorage.setItem('saved_filter_mesin', filterMesin);
+  sessionStorage.setItem('saved_filter_tanggal', filterTanggal);
+
   const masterTarget = await fetchMasterTarget();
   let payload = processDiagramData(dataMentah, filterBulan, filterMesin, filterTanggal, masterTarget);
 
   renderDropdowns(payload, filterBulan, filterMesin, filterTanggal);
   renderChartUI(payload, filterTanggal, filterBulan);
   setupMidnightAutoRefresh();
-
-  const closeBtn = document.getElementById('close-modal-btn');
-  const modal = document.getElementById('drilldown-modal');
-  if (closeBtn && modal) {
-    closeBtn.onclick = () => modal.style.display = 'none';
-    window.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
-  }
 
   document.querySelectorAll('.filter-form').forEach(form => {
     const inputs = form.querySelectorAll('select');
@@ -656,6 +596,11 @@ async function initDiagram() {
         if (input.id === 'filter-bulan') {
           currentTanggal = 'all';
         }
+
+        // Update ke sessionStorage setiap kali user mengubah dropdown filter secara manual
+        sessionStorage.setItem('saved_filter_bulan', currentBulan);
+        sessionStorage.setItem('saved_filter_mesin', currentMesin);
+        sessionStorage.setItem('saved_filter_tanggal', currentTanggal);
 
         const targetUrl = new URL(window.location.href);
         targetUrl.searchParams.set('bulan', currentBulan);
@@ -691,6 +636,7 @@ async function initDiagram() {
         
         if (currentTanggal !== 'all' && !tempPayload.availableDates.includes(currentTanggal)) {
           currentTanggal = 'all';
+          sessionStorage.setItem('saved_filter_tanggal', currentTanggal);
           targetUrl.searchParams.set('tanggal', currentTanggal);
           window.history.pushState({}, '', targetUrl);
         }
@@ -705,6 +651,9 @@ async function initDiagram() {
   const btnRefresh = document.querySelector('.btn-refresh');
   if (btnRefresh) {
     btnRefresh.onclick = () => {
+      sessionStorage.removeItem('saved_filter_bulan');
+      sessionStorage.removeItem('saved_filter_mesin');
+      sessionStorage.removeItem('saved_filter_tanggal');
       sessionStorage.clear();
       window.location.reload();
     };

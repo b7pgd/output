@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Detail Pencapaian Mesin</title>
+  <style>
+    :root {
+      --primary-dark: #0f172a;
+      --slate-heavy: #1e293b;
+      --slate-mute: #64748b;
+      --border-color: #e2e8f0;
+      --bg-main: #f8fafc;
+      --alert-danger: #ef4444;
+      
+      /* Warna Pastel Tegas Standar Dashboard Internasional */
+      --pastel-green: #2dd4bf;   /* Teal/Emerald Pastel Nyala */
+      --pastel-amber: #fbbf24;   /* Amber/Kuning Kunyit Pastel */
+      --pastel-indigo: #818cf8;  /* Indigo/Biru Ungu Pastel */
+      --pastel-bg-empty: #e2e8f0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: #f8fafc; /* Warna dasar dashboard SEO premium yang bersih */
+      color: var(--slate-heavy);
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    
+    /* Header Style Modern & Industri Standar (SEO Premium Aligned) */
+    .detail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 20px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      margin-bottom: 25px;
+      border-left: 8px solid #4f46e5; /* Aksen warna Indigo Konsisten */
+    }
+
+    .detail-header h1 {
+      font-size: 20px;
+      color: var(--primary-dark);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+    
+    /* Button Kembali dengan State Retention */
+    .btn-back {
+      background-color: #334155;
+      color: #f8fafc;
+      text-decoration: none;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13.5px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    .btn-back:hover {
+      background-color: #1e293b;
+      color: #ffffff;
+    }
+
+    .btn-back:active {
+      transform: scale(0.97);
+    }
+
+    /* Main Card Layout */
+    .detail-card {
+      background: #ffffff;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05);
+      padding: 32px;
+    }
+
+    /* Section per Tanggal Blok */
+    .date-section-block {
+      margin-bottom: 40px;
+    }
+
+    /* Layout Speedometer Grid */
+    .speedometer-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+      margin-bottom: 32px;
+    }
+
+    /* Card Speedometer Tebal, Bold & Menarik */
+    .speedometer-card {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 26px 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .speedometer-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      border-color: #cbd5e1;
+      background: #ffffff;
+    }
+    
+    /* Wrapper Canvas Gauge Setengah Lingkaran */
+    .chart-wrapper {
+      position: relative;
+      width: 220px;
+      height: 110px; 
+      margin-bottom: 14px;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+    }
+
+    /* Tulisan Batch berada DI DALAM speedometer dengan ukuran besar */
+    .speedo-batch-text {
+      position: absolute;
+      bottom: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      font-weight: 800;
+      color: #000000;
+      letter-spacing: -0.5px;
+      line-height: 1;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .speedo-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--slate-heavy);
+      margin-top: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Text murni hitam/gelap tebal tanpa wrapper hitam */
+    .speedo-box-text {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-top: 4px;
+      letter-spacing: 0.3px;
+    }
+
+    /* Breakdown Box Transaksi Ruang Kontrol */
+    .shift-breakdown-box {
+      background: #f8fafc;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .shift-detail-row {
+      display: flex;
+      border-bottom: 2px dashed #e2e8f0;
+      padding: 16px 0;
+      align-items: flex-start;
+    }
+
+    .shift-detail-row:last-child {
+      border-bottom: none;
+    }
+
+    .shift-detail-row strong {
+      min-width: 140px;
+      font-size: 14px;
+      color: var(--primary-dark);
+      font-weight: 700;
+      padding-top: 4px;
+    }
+
+    .shift-items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-size: 13.5px;
+      color: #334155;
+      width: 100%;
+    }
+
+    /* Mengganti font Courier Monospace menjadi Sans-serif Bold yang Tegas & Profesional */
+    .shift-items-list div {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 750px;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      background: #ffffff;
+      padding: 11px 18px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+    }
+
+    /* Desain khusus baris penanda Total Sub-Header */
+    .shift-items-list .total-header-row {
+      background: #334155 !important;
+      color: #ffffff !important;
+      font-family: system-ui, -apple-system, sans-serif !important;
+      font-weight: 700 !important;
+      border: none !important;
+      font-size: 13.5px;
+      padding: 8px 14px;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+    }
+
+    /* Angka Batch / Output Box di Samping Produk */
+    .badge-out {
+      font-weight: 700;
+      color: #2563eb;
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+    }
+
+    /* State Kosong */
+    .empty-text {
+      text-align: center;
+      padding: 70px 0;
+      color: var(--slate-mute);
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    /* Responsif untuk device layar kecil (Mobile Optimization) */
+    @media (max-width: 992px) {
+      body {
+        padding: 12px;
+      }
+      .detail-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding: 16px;
+      }
+      .btn-back {
+        justify-content: center;
+        width: 100%;
+        padding: 11px;
+      }
+      .detail-card {
+        padding: 16px;
+      }
+      .speedometer-row {
+        grid-template-columns: 1fr;
+        gap: 20px;
+      }
+      .shift-detail-row {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .shift-detail-row strong {
+        min-width: auto;
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 6px;
+        width: 100%;
+      }
+      .shift-items-list div {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <header class="detail-header">
+      <h1 id="detail-header-title">Output Mesin Loading...</h1>
+      <a href="diagram.html" class="btn-back" id="btn-back-dashboard">⬅ Kembali</a>
+    </header>
+
+    <main class="detail-card" id="detail-render-container">
+      <div class="empty-text">Menyelaraskan data Google Sheets...</div>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <script src="detail.js"></script>
+  
+  <script>
+    // Pengaman Sinkronisasi State Filter Link Tombol Kembali
+    document.addEventListener("DOMContentLoaded", () => {
+      const currentUrlParams = new URLSearchParams(window.location.search);
+      const mBulan = currentUrlParams.get("bulan") || "all";
+      const mTanggal = currentUrlParams.get("tanggal") || "all";
+      
+      // Ambil ID mesin aktif langsung dari URL parameter (prioritas utama halaman detail)
+      // Jika tidak ada di parameter, ambil fallback dari sessionStorage
+      const mMesinAktif = currentUrlParams.get("mesin") || sessionStorage.getItem("dashboard_filter_mesin") || "all";
+      
+      const backBtn = document.getElementById("btn-back-dashboard");
+      if (backBtn) {
+        // Mengunci state filter agar ketika kembali ke diagram.html tidak ter-reset ke kondisi awal
+        backBtn.setAttribute("href", `diagram.html?bulan=${mBulan}&mesin=${mMesinAktif}&tanggal=${mTanggal}`);
+      }
+    });
+
+    // Catatan Perbaikan Pendukung Visual: 
+    // Garis luar (borderColor) abu-abu halus diatur langsung melalui file eksternal detail.js 
+    // pada pembuatan objek Chart agar lengkungan luar/dalam speedometer tetap kontras di background putih/terang.
+  </script>
+</body>
+</html>
