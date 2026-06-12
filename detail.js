@@ -51,6 +51,20 @@ function normalisasiFormatTanggal(str) {
     return clean;
 }
 
+function ambilNamaHari(strTanggal) {
+    if (!strTanggal || strTanggal === "all") return "";
+    const parts = strTanggal.split('/');
+    if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const monthIndex = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        const dateObj = new Date(year, monthIndex, day);
+        const namaHariIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+        return namaHariIndo[dateObj.getDay()];
+    }
+    return "";
+}
+
 function formatTanggalIndo(strTanggal) {
     if (!strTanggal || strTanggal === "all") return "";
     const parts = strTanggal.split('/');
@@ -59,7 +73,8 @@ function formatTanggalIndo(strTanggal) {
         const day = parseInt(parts[0], 10);
         const monthIndex = parseInt(parts[1], 10) - 1;
         const year = parts[2];
-        return `${day} ${namaBulanIndo[monthIndex]} ${year}`;
+        const hari = ambilNamaHari(strTanggal);
+        return `${hari ? hari + ', ' : ''}${day} ${namaBulanIndo[monthIndex]} ${year}`;
     }
     return strTanggal;
 }
@@ -141,19 +156,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
     if (filterBulan !== "all" && filterTanggal === "all") {
-        renderKondisiAkumulatifBulan(flatDetailsList, masterTarget);
+        renderKondisiAkumulatifBulan(flatDetailsList, masterTarget, mesinId, filterBulan);
     } else {
         let targetTanggalFilter = filterTanggal !== "all" ? normalisasiFormatTanggal(filterTanggal) : "all";
-        renderKondisiPerTanggal(flatDetailsList, targetTanggalFilter, masterTarget);
+        renderKondisiPerTanggal(flatDetailsList, targetTanggalFilter, masterTarget, mesinId);
     }
 });
 
 // ==========================================
 // CORE RENDER LOGIC KONDISI B (PER TANGGAL)
 // ==========================================
-function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget) {
+function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget, mesinId) {
     const containerRender = document.getElementById("detail-render-container");
-    
+     
     let dataFiltered = flatDetails;
     if (filterTanggal !== "all") {
         dataFiltered = flatDetails.filter(d => d.tanggal === filterTanggal);
@@ -190,11 +205,15 @@ function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget) {
             3: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, items: [] }
         };
 
+        let grandTotalOutputHariIni = 0;
+        let grandTotalBatchHariIni = 0;
+
         listDataTgl.forEach(row => {
             const s = row.shift;
             if (shiftKalkulasi[s]) {
                 if (!row.is_empty) {
                     shiftKalkulasi[s].totalOutput += row.output;
+                    grandTotalOutputHariIni += row.output;
                     
                     let pembagi = 31250; 
                     const cleanKode = row.kode_produk.toUpperCase();
@@ -203,10 +222,11 @@ function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget) {
                     }
                     
                     if (row.output > 0) {
-                        shiftKalkulasi[s].totalBatch += (row.output / pembagi);
+                        const hitungBatch = (row.output / pembagi);
+                        shiftKalkulasi[s].totalBatch += hitungBatch;
+                        grandTotalBatchHariIni += hitungBatch;
                     }
                     
-                    // Simpan nilai target acuan produk (bukan di-override 1.0)
                     shiftKalkulasi[s].totalTargetAsli = pembagi; 
                     shiftKalkulasi[s].items.push(row);
                 }
@@ -239,6 +259,13 @@ function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget) {
             `;
         });
 
+        // O disatukan langsung tanpa span pembungkus spesial
+        const customWrapperHariIni = `
+            <div class="grand-total-bar" style="background: white; padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); border-left: 5px solid #4f46e5; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 4px;">
+                Output total ${mesinId.toLowerCase()} (${formatTanggalIndo(tgl).toLowerCase()}) : ${grandTotalOutputHariIni.toLocaleString('id-ID')} box ${grandTotalBatchHariIni.toFixed(2)} batch
+            </div>
+        `;
+
         sectionBlock.innerHTML = `
             <div class="speedometer-row">
                 <div class="speedometer-card">
@@ -268,6 +295,7 @@ function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget) {
             </div>
 
             <div class="shift-breakdown-box">
+                ${customWrapperHariIni}
                 ${listShiftHTML}
             </div>
             
@@ -276,7 +304,6 @@ function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget) {
 
         containerRender.appendChild(sectionBlock);
 
-        // Panggil pembuatan grafik dengan parameter aktual (Nilai Output Box vs Target Acuan)
         buatGaugeChart(chartId1, shiftKalkulasi[1].totalOutput, shiftKalkulasi[1].totalTargetAsli, "#2dd4bf"); 
         buatGaugeChart(chartId2, shiftKalkulasi[2].totalOutput, shiftKalkulasi[2].totalTargetAsli, "#fbbf24"); 
         buatGaugeChart(chartId3, shiftKalkulasi[3].totalOutput, shiftKalkulasi[3].totalTargetAsli, "#818cf8"); 
@@ -286,7 +313,7 @@ function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget) {
 // ==========================================
 // CORE RENDER LOGIC KONDISI A (AKUMULATIF BULAN)
 // ==========================================
-function renderKondisiAkumulatifBulan(flatDetails, masterTarget) {
+function renderKondisiAkumulatifBulan(flatDetails, masterTarget, mesinId, filterBulan) {
     const containerRender = document.getElementById("detail-render-container");
     containerRender.innerHTML = "";
 
@@ -296,12 +323,16 @@ function renderKondisiAkumulatifBulan(flatDetails, masterTarget) {
         3: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, groupMap: {} }
     };
 
+    let grandTotalOutputBulanIni = 0;
+    let grandTotalBatchBulanIni = 0;
+
     flatDetails.forEach(row => {
         if (!row.is_empty) {
             const s = row.shift;
             const gabungKey = `${row.kode_produk} ${row.no_batch}`;
 
             shiftKalkulasi[s].totalOutput += row.output;
+            grandTotalOutputBulanIni += row.output;
             
             let pembagi = 31250;
             const cleanKode = row.kode_produk.toUpperCase();
@@ -310,10 +341,11 @@ function renderKondisiAkumulatifBulan(flatDetails, masterTarget) {
             }
 
             if (row.output > 0) {
-                shiftKalkulasi[s].totalBatch += (row.output / pembagi);
+                const hitungBatch = (row.output / pembagi);
+                shiftKalkulasi[s].totalBatch += hitungBatch;
+                grandTotalBatchBulanIni += hitungBatch;
             }
             
-            // Simpan acuan pembagi murni untuk kalkulasi grafik akumulasi
             shiftKalkulasi[s].totalTargetAsli = pembagi;
 
             if (!shiftKalkulasi[s].groupMap[gabungKey]) {
@@ -349,6 +381,19 @@ function renderKondisiAkumulatifBulan(flatDetails, masterTarget) {
     const sectionBlock = document.createElement("div");
     sectionBlock.className = "date-section-block";
     
+    // Bulan dipastikan tidak disingkat (Menggunakan string utuh filterBulan)
+    let labelJudulAkumulatif = `bulan ${filterBulan.toLowerCase()} 2026`;
+    if(filterBulan === "all") {
+        labelJudulAkumulatif = `tahun 2026`;
+    }
+
+    // O disatukan langsung ke kata 'Output' tanpa tag span khusus
+    const customWrapperAkumulatif = `
+        <div class="grand-total-bar" style="background: white; padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); border-left: 5px solid #4f46e5; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 4px;">
+            Output total ${mesinId.toLowerCase()} ${labelJudulAkumulatif} : ${grandTotalOutputBulanIni.toLocaleString('id-ID')} box ${grandTotalBatchBulanIni.toFixed(2)} batch
+        </div>
+    `;
+
     sectionBlock.innerHTML = `
         <div class="speedometer-row">
             <div class="speedometer-card">
@@ -377,6 +422,7 @@ function renderKondisiAkumulatifBulan(flatDetails, masterTarget) {
             </div>
         </div>
         <div class="shift-breakdown-box">
+            ${customWrapperAkumulatif}
             ${listShiftHTML}
         </div>
     `;
@@ -395,29 +441,21 @@ function buatGaugeChart(canvasId, totalOutputValue, targetAsliValue, colorTheme)
     const ctx = document.getElementById(canvasId);
     if (!ctx) return;
 
-    // Jika tidak ada data target/0, set default fallback agar chart tidak crash
     const targetAman = targetAsliValue > 0 ? targetAsliValue : 10928;
-    
-    // Pembulatan angka target * 1.3 sesuai request (contoh: 10928 * 1.3 = 14206)
     const batasMaksimalGauge = Math.round(targetAman * 1.3);
-
-    // Skala gauge atas dinamis jika realisasi melebihi kapasitas cadangan 1.3
     let maxGaugeScale = Math.max(batasMaksimalGauge, totalOutputValue);
 
     let dataChart = [];
     let warnaChart = [];
 
     if (totalOutputValue <= targetAman) {
-        // Area sebelum mencapai target asli
         const sisaKeTargetAsli = targetAman - totalOutputValue;
         const areaOverKosong = maxGaugeScale - targetAman;
         
         dataChart = [totalOutputValue, sisaKeTargetAsli, areaOverKosong];
-        // Mengubah warna sisa target kosong menjadi abu-baru tegas (#cbd5e1) agar konturnya terlihat
         warnaChart = [colorTheme, '#cbd5e1', '#e2e8f0'];
     } 
     else {
-        // Area jika sudah melewati target asli (masuk zona biru over-produksi)
         const bagianOverTerisi = totalOutputValue - targetAman;
         const sisaOverKosong = maxGaugeScale - totalOutputValue;
         
@@ -432,7 +470,7 @@ function buatGaugeChart(canvasId, totalOutputValue, targetAsliValue, colorTheme)
                 data: dataChart,
                 backgroundColor: warnaChart,
                 borderWidth: 1,
-                borderColor: '#cbd5e1', // Mengubah border putih menjadi abu-abu halus agar lengkungan terlihat jelas
+                borderColor: '#cbd5e1', 
                 hoverBorderWidth: 0,
                 cutout: '74%'
             }]
@@ -463,7 +501,6 @@ function buatGaugeChart(canvasId, totalOutputValue, targetAsliValue, colorTheme)
                 const outerRadius = meta.data && meta.data[0] ? meta.data[0].outerRadius : (chartArea.right - chartArea.left) / 2;
                 const innerRadius = meta.data && meta.data[0] ? meta.data[0].innerRadius : outerRadius * 0.74;
 
-                // Proporsi sudut target statis di 150 derajat (karena max scale = target * 1.3)
                 const proporsiTarget = targetAman / maxGaugeScale;
                 const angleTargetRad = -Math.PI + (Math.PI * proporsiTarget);
 
@@ -477,7 +514,7 @@ function buatGaugeChart(canvasId, totalOutputValue, targetAsliValue, colorTheme)
                 ctx.moveTo(startX, startY);
                 ctx.lineTo(endX, endY);
                 ctx.lineWidth = 3;           
-                ctx.strokeStyle = '#ef4444'; // Garis merah penanda target presisi
+                ctx.strokeStyle = '#ef4444'; 
                 ctx.stroke();
                 ctx.restore();
             }
