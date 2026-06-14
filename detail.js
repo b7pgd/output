@@ -1,523 +1,650 @@
-// ==========================================
-// CONFIGURATION & GLOBAL STATE (Sinkron dengan App Utama)
-// ==========================================
+// ========================================== //
+// CONFIGURATION & GLOBAL STATE (Sinkron dengan App Utama) //
+// ========================================== //
 const CONFIG = {
-    sheetGids: {
-        "Januari": "1878816489", "Februari": "339606626", "Maret": "597553472",
-        "April": "1333467666", "Mei": "587360054", "Juni": "1622550300",
-        "Juli": "695077635", "Agustus": "1318929301", "September": "1763870211",
-        "Oktober": "1593437933", "November": "391199552", "Desember": "351449246"
-    },
-    baseUrl: "https://docs.google.com/spreadsheets/d/10bKsfF0ozFcJSTWX5AhUJLAofJgB1o9QEL0KPRR1XIM/export?format=csv&gid="
+  sheetGids: {
+    "Januari": "1878816489",
+    "Februari": "339606626",
+    "Maret": "597553472",
+    "April": "1333467666",
+    "Mei": "587360054",
+    "Juni": "1622550300",
+    "Juli": "695077635",
+    "Agustus": "1318929301",
+    "September": "1763870211",
+    "Oktober": "1593437933",
+    "November": "391199552",
+    "Desember": "351449246"
+  },
+  baseUrl: "https://docs.google.com/spreadsheets/d/10bKsfF0ozFcJSTWX5AhUJLAofJgB1o9QEL0KPRR1XIM/export?format=csv&gid="
 };
 
 const MASTER_SHEETS_URL = "https://docs.google.com/spreadsheets/d/1iacLGBOQdkFxSAjlGm-CUlYm9s9hj8Tk9iGs8Mfg-z0/gviz/tq?gid=536194009";
 
-// ==========================================
-// CORE DATA FETCHING (Menggunakan Fungsi Asli Kamu)
-// ==========================================
+// ========================================== //
+// CORE DATA FETCHING //
+// ========================================== //
 async function fetchMasterTarget() {
-    const cachedTarget = sessionStorage.getItem("master_target_cache");
-    if (cachedTarget) return JSON.parse(cachedTarget);
-    try {
-        const response = await fetch(MASTER_SHEETS_URL);
-        const text = await response.text();
-        const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
-        const json = JSON.parse(jsonString);
-        let targetMap = {};
-        const rows = json.table.rows;
-        rows.forEach(row => {
-            if (!row.c) return;
-            const kodeProduk = row.c[1] ? String(row.c[1].v).trim().toUpperCase() : null;
-            const targetValue = row.c[13] ? parseFloat(row.c[13].v) : null;
-            if (kodeProduk && targetValue) {
-                targetMap[kodeProduk] = targetValue;
-            }
-        });
-        sessionStorage.setItem("master_target_cache", JSON.stringify(targetMap));
-        return targetMap;
-    } catch (error) {
-        console.error("Gagal memuat master data target pembagi:", error);
-        return {};
-    }
+  const cachedTarget = sessionStorage.getItem("master_target_cache");
+  if (cachedTarget) return JSON.parse(cachedTarget);
+
+  try {
+    const response = await fetch(MASTER_SHEETS_URL);
+    const text = await response.text();
+    const jsonString = text.substring(text.indexOf("{"), text.lastIndexOf("}") + 1);
+    const json = JSON.parse(jsonString);
+    let targetMap = {};
+    const rows = json.table.rows;
+    rows.forEach(row => {
+      if (!row.c) return;
+      const kodeProduk = row.c[1] ? String(row.c[1].v).trim().toUpperCase() : null;
+      const targetValue = row.c[13] ? parseFloat(row.c[13].v) : null;
+      if (kodeProduk && targetValue) {
+        targetMap[kodeProduk] = targetValue;
+      }
+    });
+    sessionStorage.setItem("master_target_cache", JSON.stringify(targetMap));
+    return targetMap;
+  } catch (error) {
+    console.error("Gagal memuat master data target pembagi:", error);
+    return {};
+  }
 }
 
-// ==========================================
-// UTILITY PARSER TANGGAL (Pencocokan Format Teks)
-// ==========================================
+// ========================================== //
+// UTILITY PARSER TANGGAL //
+// ========================================== //
 function normalisasiFormatTanggal(str) {
-    if (!str) return "";
-    let clean = str.trim();
-    return clean;
+  if (!str) return "";
+  return str.trim();
 }
 
 function ambilNamaHari(strTanggal) {
-    if (!strTanggal || strTanggal === "all") return "";
-    const parts = strTanggal.split('/');
-    if (parts.length === 3) {
-        const day = parseInt(parts[0], 10);
-        const monthIndex = parseInt(parts[1], 10) - 1;
-        const year = parseInt(parts[2], 10);
-        const dateObj = new Date(year, monthIndex, day);
-        const namaHariIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
-        return namaHariIndo[dateObj.getDay()];
-    }
-    return "";
+  if (!strTanggal || strTanggal === "all") return "";
+  const parts = strTanggal.split('/');
+  if (parts.length === 3) {
+    const day = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    const dateObj = new Date(year, monthIndex, day);
+    const namaHariIndo = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+    return namaHariIndo[dateObj.getDay()];
+  }
+  return "";
 }
 
 function formatTanggalIndo(strTanggal) {
-    if (!strTanggal || strTanggal === "all") return "";
-    const parts = strTanggal.split('/');
-    if (parts.length === 3) {
-        const namaBulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
-        const day = parseInt(parts[0], 10);
-        const monthIndex = parseInt(parts[1], 10) - 1;
-        const year = parts[2];
-        const hari = ambilNamaHari(strTanggal);
-        return `${hari ? hari + ', ' : ''}${day} ${namaBulanIndo[monthIndex]} ${year}`;
-    }
-    return strTanggal;
+  if (!strTanggal || strTanggal === "all") return "";
+  const parts = strTanggal.split('/');
+  if (parts.length === 3) {
+    const namaBulanIndo = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    const day = parseInt(parts[0], 10);
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const year = parts[2];
+    const hari = ambilNamaHari(strTanggal);
+    return `${hari ? hari + ', ' : ''}${day} ${namaBulanIndo[monthIndex]} ${year}`;
+  }
+  return strTanggal;
 }
 
-// ==========================================
-// APPLICATION CONTROLLER FOR DETAIL.HTML
-// ==========================================
+// HELPER BARU: Potong desimal langsung tanpa pembulatan matematika bulat-ke-atas bawaan JS
+function potongDesimalTanpaBuletin(angka, digit = 2) {
+  const faktor = Math.pow(10, digit);
+  return (Math.floor(angka * faktor) / faktor).toFixed(digit);
+}
+
+// ========================================== //
+// APPLICATION CONTROLLER FOR DETAIL.HTML //
+// ========================================== //
 document.addEventListener("DOMContentLoaded", async () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const mesinId = urlParams.get("mesin") || "all";
-    const filterBulan = urlParams.get("bulan") || "all";
-    const filterTanggal = urlParams.get("tanggal") || "all";
+  const urlParams = new URLSearchParams(window.location.search);
+  const mesinId = urlParams.get("mesin") || "all";
+  const filterBulan = urlParams.get("bulan") || "all";
+  const filterTanggal = urlParams.get("tanggal") || "all";
 
-    const txtHeaderTitle = document.getElementById("detail-header-title");
-    const containerRender = document.getElementById("detail-render-container");
+  const txtHeaderTitle = document.getElementById("detail-header-title");
+  const containerRender = document.getElementById("detail-render-container");
+  const btnKembali = document.querySelector(".btn-back, .btn-kembali, a[href*='diagram.html']");
 
-    // FIX STATE FILTER MESIN: Mengunci filter kembali ke diagram sesuai dengan ID mesin aktif saat ini
-    const btnKembali = document.querySelector(".btn-back, .btn-kembali, a[href*='diagram.html']");
-    if (btnKembali) {
-        btnKembali.setAttribute("href", `diagram.html?bulan=${filterBulan}&mesin=${mesinId}&tanggal=${filterTanggal}`);
+  if (btnKembali) {
+    btnKembali.setAttribute("href", `diagram.html?bulan=${filterBulan}&mesin=${mesinId}&tanggal=${filterTanggal}`);
+  }
+
+  if (mesinId === "all") {
+    alert("Pilih mesin terlebih dahulu!");
+    window.location.href = `diagram.html?bulan=${filterBulan}&tanggal=${filterTanggal}`;
+    return;
+  }
+
+  if (filterTanggal !== "all") {
+    txtHeaderTitle.innerText = `Output Mesin ${mesinId} (${formatTanggalIndo(filterTanggal)})`;
+  } else if (filterBulan !== "all") {
+    txtHeaderTitle.innerText = `Output Mesin ${mesinId} (Output Total ${filterBulan})`;
+  } else {
+    txtHeaderTitle.innerText = `Output Mesin ${mesinId} (Semua Periode Tahun 2026)`;
+  }
+
+  containerRender.innerHTML = `<div class="empty-text">Menyinkronkan data utama dari spreadsheet...</div>`;
+
+  let dataMentah = [];
+
+  if (filterBulan === "all") {
+    const daftarBulan = Object.keys(CONFIG.sheetGids);
+    for (const bln of daftarBulan) {
+      const cacheKeyBln = `sheets_cache_${bln}`;
+      const cachedBlnData = sessionStorage.getItem(cacheKeyBln);
+      let chunkData = [];
+      if (cachedBlnData) {
+        chunkData = JSON.parse(cachedBlnData);
+      } else if (typeof window.fetchAndParseSheets === "function") {
+        try {
+          chunkData = await window.fetchAndParseSheets(bln);
+        } catch (e) {
+          console.warn(`Gagal memuat data otomatis untuk bulan ${bln}:`, e);
+        }
+      }
+      if (Array.isArray(chunkData)) {
+        dataMentah = dataMentah.concat(chunkData);
+      }
     }
-
-    if (mesinId === "all") {
-        alert("Pilih mesin terlebih dahulu!");
-        window.location.href = `diagram.html?bulan=${filterBulan}&tanggal=${filterTanggal}`;
-        return;
-    }
-
-    if (filterTanggal !== "all") {
-        txtHeaderTitle.innerText = `Output Mesin ${mesinId} (${formatTanggalIndo(filterTanggal)})`;
-    } else if (filterBulan !== "all") {
-        txtHeaderTitle.innerText = `Output Mesin ${mesinId} (Output Total ${filterBulan})`;
-    } else {
-        txtHeaderTitle.innerText = `Output Mesin ${mesinId} (Semua Periode)`;
-    }
-
+  } else {
     const cachedKey = `sheets_cache_${filterBulan}`;
     const cachedData = sessionStorage.getItem(cachedKey);
-    let dataMentah = [];
-
     if (cachedData) {
-        dataMentah = JSON.parse(cachedData);
+      dataMentah = JSON.parse(cachedData);
+    } else if (typeof window.fetchAndParseSheets === "function") {
+      dataMentah = await window.fetchAndParseSheets(filterBulan);
     } else {
-        containerRender.innerHTML = `<div class="empty-text">Menyinkronkan data utama dari spreadsheet...</div>`;
-        if (typeof window.fetchAndParseSheets === "function") {
-            dataMentah = await window.fetchAndParseSheets(filterBulan);
-        } else {
-            containerRender.innerHTML = `<div class="empty-text" style="color:red;">Error: Silakan kembali ke dashboard utama untuk memuat cache data.</div>`;
-            return;
-        }
+      containerRender.innerHTML = `<div class="empty-text" style="color:red;">Error: Silakan kembali to dashboard utama untuk memuat cache data.</div>`;
+      return;
     }
+  }
 
-    const masterTarget = await fetchMasterTarget();
+  const masterTarget = await fetchMasterTarget();
 
-    let dataMesinTerpilih = dataMentah.filter(item => item.mesin.toLowerCase() === mesinId.toLowerCase());
+  let dataMesinTerpilih = dataMentah.filter(item => item.mesin && item.mesin.toLowerCase() === mesinId.toLowerCase());
 
-    if (dataMesinTerpilih.length === 0) {
-        containerRender.innerHTML = `<div class="empty-text">Tidak ada data untuk kombinasi mesin ${mesinId} ini.</div>`;
-        return;
+  if (dataMesinTerpilih.length === 0) {
+    containerRender.innerHTML = `<div class="empty-text">Tidak ada data untuk kombinasi mesin ${mesinId} ini.</div>`;
+    return;
+  }
+
+  let flatDetailsList = [];
+  dataMesinTerpilih.forEach(batchBlock => {
+    if (batchBlock.details && Array.isArray(batchBlock.details)) {
+      batchBlock.details.forEach(det => {
+        const isCuciMesin = det.kode_produk && det.kode_produk.toUpperCase().includes("CUCI MESIN");
+        const isOffOrEmpty = !det.kode_produk || det.kode_produk === "-" || det.kode_produk.toUpperCase() === "OFF" || det.kode_produk.toUpperCase() === "LIBUR" || isCuciMesin;
+        const numOutput = parseFloat(det.output) || 0;
+
+        flatDetailsList.push({
+          tanggal: normalisasiFormatTanggal(det.tanggal),
+          shift: parseInt(det.shift) || 1,
+          kode_produk: det.kode_produk ? det.kode_produk.trim() : "-",
+          no_batch: det.no_batch ? det.no_batch.trim() : "-",
+          output: numOutput,
+          is_empty: isOffOrEmpty
+        });
+      });
     }
+  });
 
-    let flatDetailsList = [];
-    dataMesinTerpilih.forEach(batchBlock => {
-        if (batchBlock.details && Array.isArray(batchBlock.details)) {
-            batchBlock.details.forEach(det => {
-                const isOffOrEmpty = !det.kode_produk || det.kode_produk === "-" || det.kode_produk.toUpperCase() === "OFF" || det.kode_produk.toUpperCase() === "LIBUR";
-                const numOutput = parseFloat(det.output) || 0;
-
-                flatDetailsList.push({
-                    tanggal: normalisasiFormatTanggal(det.tanggal),
-                    shift: parseInt(det.shift) || 1,
-                    kode_produk: det.kode_produk ? det.kode_produk.trim() : "-",
-                    no_batch: det.no_batch ? det.no_batch.trim() : "-",
-                    output: numOutput,
-                    is_empty: isOffOrEmpty
-                });
-            });
-        }
-    });
-
-    if (filterBulan !== "all" && filterTanggal === "all") {
-        renderKondisiAkumulatifBulan(flatDetailsList, masterTarget, mesinId, filterBulan);
-    } else {
-        let targetTanggalFilter = filterTanggal !== "all" ? normalisasiFormatTanggal(filterTanggal) : "all";
-        renderKondisiPerTanggal(flatDetailsList, targetTanggalFilter, masterTarget, mesinId);
-    }
+  if (filterTanggal === "all") {
+    renderKondisiAkumulatifBulan(flatDetailsList, masterTarget, mesinId, filterBulan);
+  } else {
+    let targetTanggalFilter = normalisasiFormatTanggal(filterTanggal);
+    renderKondisiPerTanggal(flatDetailsList, targetTanggalFilter, masterTarget, mesinId);
+  }
 });
 
-// ==========================================
-// CORE RENDER LOGIC KONDISI B (PER TANGGAL)
-// ==========================================
+// ========================================== //
+// FIX RENDER LOGIC KONDISI B (PER TANGGAL) //
+// ========================================== //
 function renderKondisiPerTanggal(flatDetails, filterTanggal, masterTarget, mesinId) {
-    const containerRender = document.getElementById("detail-render-container");
-     
-    let dataFiltered = flatDetails;
-    if (filterTanggal !== "all") {
-        dataFiltered = flatDetails.filter(d => d.tanggal === filterTanggal);
-    }
+  const containerRender = document.getElementById("detail-render-container");
+  let dataFiltered = flatDetails;
 
-    if (dataFiltered.length === 0) {
-        containerRender.innerHTML = `<div class="empty-text">Tidak ada data transaksi pada tanggal tersebut.</div>`;
-        return;
-    }
+  if (filterTanggal !== "all") {
+    dataFiltered = flatDetails.filter(d => d.tanggal === filterTanggal);
+  }
 
-    let groupByTanggal = {};
-    dataFiltered.forEach(item => {
-        if (!groupByTanggal[item.tanggal]) groupByTanggal[item.tanggal] = [];
-        groupByTanggal[item.tanggal].push(item);
-    });
+  if (dataFiltered.length === 0) {
+    containerRender.innerHTML = `<div class="empty-text">Tidak ada data transaksi pada tanggal tersebut.</div>`;
+    return;
+  }
 
-    const sortedTanggalList = Object.keys(groupByTanggal).sort((a, b) => {
-        const partsA = a.split('/');
-        const partsB = b.split('/');
-        if (partsA.length !== 3 || partsB.length !== 3) return 0;
-        return new Date(partsA[2], partsA[1] - 1, partsA[0]) - new Date(partsB[2], partsB[1] - 1, partsB[0]);
-    });
+  let groupByTanggal = {};
+  dataFiltered.forEach(item => {
+    if (!groupByTanggal[item.tanggal]) groupByTanggal[item.tanggal] = [];
+    groupByTanggal[item.tanggal].push(item);
+  });
 
-    containerRender.innerHTML = ""; 
+  const sortedTanggalList = Object.keys(groupByTanggal).sort((a, b) => {
+    const partsA = a.split('/');
+    const partsB = b.split('/');
+    if (partsA.length !== 3 || partsB.length !== 3) return 0;
+    return new Date(partsA[2], partsA[1] - 1, partsA[0]) - new Date(partsB[2], partsB[1] - 1, partsB[0]);
+  });
 
-    sortedTanggalList.forEach((tgl, index) => {
-        const listDataTgl = groupByTanggal[tgl];
-        const sectionBlock = document.createElement("div");
-        sectionBlock.className = "date-section-block";
+  containerRender.innerHTML = "";
 
-        const shiftKalkulasi = {
-            1: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, items: [] },
-            2: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, items: [] },
-            3: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, items: [] }
-        };
-
-        let grandTotalOutputHariIni = 0;
-        let grandTotalBatchHariIni = 0;
-
-        listDataTgl.forEach(row => {
-            const s = row.shift;
-            if (shiftKalkulasi[s]) {
-                if (!row.is_empty) {
-                    shiftKalkulasi[s].totalOutput += row.output;
-                    grandTotalOutputHariIni += row.output;
-                    
-                    let pembagi = 31250; 
-                    const cleanKode = row.kode_produk.toUpperCase();
-                    if (masterTarget[cleanKode]) {
-                        pembagi = masterTarget[cleanKode];
-                    }
-                    
-                    if (row.output > 0) {
-                        const hitungBatch = (row.output / pembagi);
-                        shiftKalkulasi[s].totalBatch += hitungBatch;
-                        grandTotalBatchHariIni += hitungBatch;
-                    }
-                    
-                    shiftKalkulasi[s].totalTargetAsli = pembagi; 
-                    shiftKalkulasi[s].items.push(row);
-                }
-            }
-        });
-
-        const chartId1 = `gauge-s1-${index}`;
-        const chartId2 = `gauge-s2-${index}`;
-        const chartId3 = `gauge-s3-${index}`;
-
-        let listShiftHTML = "";
-        [1, 2, 3].forEach(s => {
-            const itemRows = shiftKalkulasi[s].items;
-            
-            let headerOutputTotalHTML = "";
-            if (itemRows.length > 0) {
-                headerOutputTotalHTML = `<div class="total-header-row">| Output total : ${shiftKalkulasi[s].totalOutput.toLocaleString('id-ID')} box | ${shiftKalkulasi[s].totalBatch.toFixed(2)} Batch</div>`;
-            }
-
-            listShiftHTML += `
-                <div class="shift-detail-row">
-                    <strong>Shift ${s} :</strong>
-                    <div class="shift-items-list">
-                        ${headerOutputTotalHTML}
-                        ${itemRows.map(r => {
-                            return `<div>${r.kode_produk} ${r.no_batch} <span class="badge-out">${r.output.toLocaleString('id-ID')}</span></div>`;
-                        }).join("") || '<div class="no-data">Tidak ada output produksi (Mesin Off/Libur)</div>'}
-                    </div>
-                </div>
-            `;
-        });
-
-        // O disatukan langsung tanpa span pembungkus spesial
-        const customWrapperHariIni = `
-            <div class="grand-total-bar" style="background: white; padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); border-left: 5px solid #4f46e5; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 4px;">
-                Output total ${mesinId.toLowerCase()} (${formatTanggalIndo(tgl).toLowerCase()}) : ${grandTotalOutputHariIni.toLocaleString('id-ID')} box ${grandTotalBatchHariIni.toFixed(2)} batch
-            </div>
-        `;
-
-        sectionBlock.innerHTML = `
-            <div class="speedometer-row">
-                <div class="speedometer-card">
-                    <div class="chart-wrapper">
-                        <canvas id="${chartId1}"></canvas>
-                        <div class="speedo-batch-text">${shiftKalkulasi[1].totalBatch.toFixed(2)}</div>
-                    </div>
-                    <div class="speedo-label">Shift 1</div>
-                    <div class="speedo-box-text">${shiftKalkulasi[1].totalOutput.toLocaleString('id-ID')} box</div>
-                </div>
-                <div class="speedometer-card">
-                    <div class="chart-wrapper">
-                        <canvas id="${chartId2}"></canvas>
-                        <div class="speedo-batch-text">${shiftKalkulasi[2].totalBatch.toFixed(2)}</div>
-                    </div>
-                    <div class="speedo-label">Shift 2</div>
-                    <div class="speedo-box-text">${shiftKalkulasi[2].totalOutput.toLocaleString('id-ID')} box</div>
-                </div>
-                <div class="speedometer-card">
-                    <div class="chart-wrapper">
-                        <canvas id="${chartId3}"></canvas>
-                        <div class="speedo-batch-text">${shiftKalkulasi[3].totalBatch.toFixed(2)}</div>
-                    </div>
-                    <div class="speedo-label">Shift 3</div>
-                    <div class="speedo-box-text">${shiftKalkulasi[3].totalOutput.toLocaleString('id-ID')} box</div>
-                </div>
-            </div>
-
-            <div class="shift-breakdown-box">
-                ${customWrapperHariIni}
-                ${listShiftHTML}
-            </div>
-            
-            ${index < sortedTanggalList.length - 1 ? '<hr class="section-divider" />' : ''}
-        `;
-
-        containerRender.appendChild(sectionBlock);
-
-        buatGaugeChart(chartId1, shiftKalkulasi[1].totalOutput, shiftKalkulasi[1].totalTargetAsli, "#2dd4bf"); 
-        buatGaugeChart(chartId2, shiftKalkulasi[2].totalOutput, shiftKalkulasi[2].totalTargetAsli, "#fbbf24"); 
-        buatGaugeChart(chartId3, shiftKalkulasi[3].totalOutput, shiftKalkulasi[3].totalTargetAsli, "#818cf8"); 
-    });
-}
-
-// ==========================================
-// CORE RENDER LOGIC KONDISI A (AKUMULATIF BULAN)
-// ==========================================
-function renderKondisiAkumulatifBulan(flatDetails, masterTarget, mesinId, filterBulan) {
-    const containerRender = document.getElementById("detail-render-container");
-    containerRender.innerHTML = "";
+  sortedTanggalList.forEach((tgl, index) => {
+    const listDataTgl = groupByTanggal[tgl];
+    const sectionBlock = document.createElement("div");
+    sectionBlock.className = "date-section-block";
 
     const shiftKalkulasi = {
-        1: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, groupMap: {} },
-        2: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, groupMap: {} },
-        3: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, groupMap: {} }
+      1: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, items: [] },
+      2: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, items: [] },
+      3: { totalOutput: 0, totalBatch: 0, totalTargetAsli: 0, items: [] }
     };
 
-    let grandTotalOutputBulanIni = 0;
-    let grandTotalBatchBulanIni = 0;
+    let grandTotalOutputHariIni = 0;
+    let grandTotalBatchHariIni = 0;
 
-    flatDetails.forEach(row => {
+    listDataTgl.forEach(row => {
+      const s = row.shift;
+      if (shiftKalkulasi[s]) {
         if (!row.is_empty) {
-            const s = row.shift;
-            const gabungKey = `${row.kode_produk} ${row.no_batch}`;
+          shiftKalkulasi[s].totalOutput += row.output;
+          grandTotalOutputHariIni += row.output;
 
-            shiftKalkulasi[s].totalOutput += row.output;
-            grandTotalOutputBulanIni += row.output;
-            
-            let pembagi = 31250;
-            const cleanKode = row.kode_produk.toUpperCase();
-            if (masterTarget[cleanKode]) {
-                pembagi = masterTarget[cleanKode];
-            }
+          let pembagi = 31250;
+          const cleanKode = row.kode_produk.toUpperCase();
+          if (masterTarget[cleanKode]) {
+            pembagi = masterTarget[cleanKode];
+          }
 
-            if (row.output > 0) {
-                const hitungBatch = (row.output / pembagi);
-                shiftKalkulasi[s].totalBatch += hitungBatch;
-                grandTotalBatchBulanIni += hitungBatch;
-            }
-            
-            shiftKalkulasi[s].totalTargetAsli = pembagi;
-
-            if (!shiftKalkulasi[s].groupMap[gabungKey]) {
-                shiftKalkulasi[s].groupMap[gabungKey] = { output: 0 };
-            }
-            shiftKalkulasi[s].groupMap[gabungKey].output += row.output;
+          if (row.output > 0) {
+            const hitungBatch = (row.output / pembagi);
+            shiftKalkulasi[s].totalBatch += hitungBatch;
+            grandTotalBatchHariIni += hitungBatch;
+          }
+          shiftKalkulasi[s].totalTargetAsli = pembagi;
+          shiftKalkulasi[s].items.push(row);
         }
+      }
     });
+
+    const chartId1 = `gauge-s1-${index}`;
+    const chartId2 = `gauge-s2-${index}`;
+    const chartId3 = `gauge-s3-${index}`;
 
     let listShiftHTML = "";
     [1, 2, 3].forEach(s => {
-        const arrayRows = Object.keys(shiftKalkulasi[s].groupMap).map(key => {
-            const detailG = shiftKalkulasi[s].groupMap[key];
-            return `<div>${key} <span class="badge-out">${detailG.output.toLocaleString('id-ID')}</span></div>`;
-        });
+      const itemRows = shiftKalkulasi[s].items;
+      let headerOutputTotalHTML = "";
+      if (itemRows.length > 0) {
+        headerOutputTotalHTML = `<div class="total-header-row">| Target Output : ${shiftKalkulasi[s].totalTargetAsli.toLocaleString('id-ID')} | Output total : ${shiftKalkulasi[s].totalOutput.toLocaleString('id-ID')} box | ${potongDesimalTanpaBuletin(shiftKalkulasi[s].totalBatch, 2)} Batch</div>`;
+      }
 
-        let headerOutputTotalHTML = "";
-        if (arrayRows.length > 0) {
-            headerOutputTotalHTML = `<div class="total-header-row">| Output total : ${shiftKalkulasi[s].totalOutput.toLocaleString('id-ID')} box | ${shiftKalkulasi[s].totalBatch.toFixed(2)} Batch</div>`;
-        }
-
-        listShiftHTML += `
-            <div class="shift-detail-row">
-                <strong>Shift ${s} (Akumulatif):</strong>
-                <div class="shift-items-list">
-                    ${headerOutputTotalHTML}
-                    ${arrayRows.join("") || '<div class="no-data">Tidak ada produksi bulan ini</div>'}
-                </div>
-            </div>
-        `;
+      listShiftHTML += `
+        <div class="shift-detail-row">
+          <strong>Shift ${s} :</strong>
+          <div class="shift-items-list">
+            ${headerOutputTotalHTML}
+            ${itemRows.map(r => {
+              return `<div>${r.kode_produk} ${r.no_batch} <span class="badge-out">${r.output.toLocaleString('id-ID')}</span></div>`;
+            }).join("") || '<div class="no-data">Tidak ada output produksi (Mesin Off/Libur)</div>'}
+          </div>
+        </div>
+      `;
     });
 
-    const sectionBlock = document.createElement("div");
-    sectionBlock.className = "date-section-block";
-    
-    // Bulan dipastikan tidak disingkat (Menggunakan string utuh filterBulan)
-    let labelJudulAkumulatif = `bulan ${filterBulan.toLowerCase()} 2026`;
-    if(filterBulan === "all") {
-        labelJudulAkumulatif = `tahun 2026`;
-    }
-
-    // O disatukan langsung ke kata 'Output' tanpa tag span khusus
-    const customWrapperAkumulatif = `
-        <div class="grand-total-bar" style="background: white; padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); border-left: 5px solid #4f46e5; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 4px;">
-            Output total ${mesinId.toLowerCase()} ${labelJudulAkumulatif} : ${grandTotalOutputBulanIni.toLocaleString('id-ID')} box ${grandTotalBatchBulanIni.toFixed(2)} batch
-        </div>
+    const customWrapperHariIni = `
+      <div class="grand-total-bar" style="background: white; padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); border-left: 5px solid #4f46e5; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 4px;">
+        Output total ${mesinId.toLowerCase()} (${formatTanggalIndo(tgl).toLowerCase()}) : ${grandTotalOutputHariIni.toLocaleString('id-ID')} box ${potongDesimalTanpaBuletin(grandTotalBatchHariIni, 2)} batch
+      </div>
     `;
 
     sectionBlock.innerHTML = `
-        <div class="speedometer-row">
-            <div class="speedometer-card">
-                <div class="chart-wrapper">
-                    <canvas id="gauge-m-s1"></canvas>
-                    <div class="speedo-batch-text">${shiftKalkulasi[1].totalBatch.toFixed(2)}</div>
-                </div>
-                <div class="speedo-label">Shift 1</div>
-                <div class="speedo-box-text">${shiftKalkulasi[1].totalOutput.toLocaleString('id-ID')} box</div>
-            </div>
-            <div class="speedometer-card">
-                <div class="chart-wrapper">
-                    <canvas id="gauge-m-s2"></canvas>
-                    <div class="speedo-batch-text">${shiftKalkulasi[2].totalBatch.toFixed(2)}</div>
-                </div>
-                <div class="speedo-label">Shift 2</div>
-                <div class="speedo-box-text">${shiftKalkulasi[2].totalOutput.toLocaleString('id-ID')} box</div>
-            </div>
-            <div class="speedometer-card">
-                <div class="chart-wrapper">
-                    <canvas id="gauge-m-s3"></canvas>
-                    <div class="speedo-batch-text">${shiftKalkulasi[3].totalBatch.toFixed(2)}</div>
-                </div>
-                <div class="speedo-label">Shift 3</div>
-                <div class="speedo-box-text">${shiftKalkulasi[3].totalOutput.toLocaleString('id-ID')} box</div>
-            </div>
+      <div class="speedometer-row">
+        <div class="speedometer-card">
+          <div class="chart-wrapper">
+            <canvas id="${chartId1}"></canvas>
+            <div class="speedo-batch-text">${potongDesimalTanpaBuletin(shiftKalkulasi[1].totalBatch, 2)}</div>
+          </div>
+          <div class="speedo-label">Shift 1</div>
+          <div class="speedo-box-text">${shiftKalkulasi[1].totalOutput.toLocaleString('id-ID')} box</div>
         </div>
-        <div class="shift-breakdown-box">
-            ${customWrapperAkumulatif}
-            ${listShiftHTML}
+        <div class="speedometer-card">
+          <div class="chart-wrapper">
+            <canvas id="${chartId2}"></canvas>
+            <div class="speedo-batch-text">${potongDesimalTanpaBuletin(shiftKalkulasi[2].totalBatch, 2)}</div>
+          </div>
+          <div class="speedo-label">Shift 2</div>
+          <div class="speedo-box-text">${shiftKalkulasi[2].totalOutput.toLocaleString('id-ID')} box</div>
         </div>
+        <div class="speedometer-card">
+          <div class="chart-wrapper">
+            <canvas id="${chartId3}"></canvas>
+            <div class="speedo-batch-text">${potongDesimalTanpaBuletin(shiftKalkulasi[3].totalBatch, 2)}</div>
+          </div>
+          <div class="speedo-label">Shift 3</div>
+          <div class="speedo-box-text">${shiftKalkulasi[3].totalOutput.toLocaleString('id-ID')} box</div>
+        </div>
+      </div>
+      <div class="shift-breakdown-box">
+        ${customWrapperHariIni}
+        ${listShiftHTML}
+      </div>
+      ${index < sortedTanggalList.length - 1 ? '<hr class="section-divider" />' : ''}
     `;
 
     containerRender.appendChild(sectionBlock);
 
-    buatGaugeChart("gauge-m-s1", shiftKalkulasi[1].totalOutput, shiftKalkulasi[1].totalTargetAsli, "#2dd4bf");
-    buatGaugeChart("gauge-m-s2", shiftKalkulasi[2].totalOutput, shiftKalkulasi[2].totalTargetAsli, "#fbbf24");
-    buatGaugeChart("gauge-m-s3", shiftKalkulasi[3].totalOutput, shiftKalkulasi[3].totalTargetAsli, "#818cf8");
+    buatGaugeChart(chartId1, shiftKalkulasi[1].totalOutput, shiftKalkulasi[1].totalTargetAsli, "#2dd4bf");
+    buatGaugeChart(chartId2, shiftKalkulasi[2].totalOutput, shiftKalkulasi[2].totalTargetAsli, "#fbbf24");
+    buatGaugeChart(chartId3, shiftKalkulasi[3].totalOutput, shiftKalkulasi[3].totalTargetAsli, "#818cf8");
+  });
 }
 
-// ==========================================
-// DOUGHNUT SPEEDOMETER GAUGE - FIXED CONSISTENT RED LINE
-// ==========================================
-function buatGaugeChart(canvasId, totalOutputValue, targetAsliValue, colorTheme) {
-    const ctx = document.getElementById(canvasId);
-    if (!ctx) return;
+// ========================================== //
+// FIX REQ: CORE RENDER LOGIC KONDISI A (FILTER SEMUA TANGGAL / AKUMULATIF PERIODE) //
+// ========================================== //
+function renderKondisiAkumulatifBulan(flatDetails, masterTarget, mesinId, filterBulan) {
+  const containerRender = document.getElementById("detail-render-container");
+  containerRender.innerHTML = "";
 
-    const targetAman = targetAsliValue > 0 ? targetAsliValue : 10928;
-    const batasMaksimalGauge = Math.round(targetAman * 1.3);
-    let maxGaugeScale = Math.max(batasMaksimalGauge, totalOutputValue);
+  // Penampung murni mengikuti struktur data baris transaksi harian tanpa merusak proporsi
+  const shiftKalkulasi = {
+    1: { totalOutput: 0, totalBatch: 0, groupMap: {}, partAsli: 0, partOver: 0, partKosong: 0, totalTargetAsliKumulatif: 0, totalBatchOver: 0 },
+    2: { totalOutput: 0, totalBatch: 0, groupMap: {}, partAsli: 0, partOver: 0, partKosong: 0, totalTargetAsliKumulatif: 0, totalBatchOver: 0 },
+    3: { totalOutput: 0, totalBatch: 0, groupMap: {}, partAsli: 0, partOver: 0, partKosong: 0, totalTargetAsliKumulatif: 0, totalBatchOver: 0 }
+  };
 
-    let dataChart = [];
-    let warnaChart = [];
+  let grandTotalOutputBulanIni = 0;
+  let grandTotalBatchBulanIni = 0;
 
-    if (totalOutputValue <= targetAman) {
-        const sisaKeTargetAsli = targetAman - totalOutputValue;
-        const areaOverKosong = maxGaugeScale - targetAman;
-        
-        dataChart = [totalOutputValue, sisaKeTargetAsli, areaOverKosong];
-        warnaChart = [colorTheme, '#cbd5e1', '#e2e8f0'];
-    } 
-    else {
-        const bagianOverTerisi = totalOutputValue - targetAman;
-        const sisaOverKosong = maxGaugeScale - totalOutputValue;
-        
-        dataChart = [targetAman, bagianOverTerisi, sisaOverKosong];
-        warnaChart = [colorTheme, '#3b82f6', '#e2e8f0']; 
+  // LOOP FONDASI UTAMA: Eksekusi desimal murni per baris transaksi langsung tanpa pembulatan harian bertingkat
+  flatDetails.forEach(row => {
+    if (!row.is_empty) {
+      const s = row.shift;
+
+      let pembagi = 31250;
+      const cleanKode = row.kode_produk.toUpperCase();
+      if (masterTarget[cleanKode]) {
+        pembagi = masterTarget[cleanKode];
+      }
+
+      // Grouping teks info item list breakdown bawah
+      const gabungKey = `${row.kode_produk} ${row.no_batch}`;
+      if (!shiftKalkulasi[s].groupMap[gabungKey]) {
+        shiftKalkulasi[s].groupMap[gabungKey] = { output: 0 };
+      }
+      shiftKalkulasi[s].groupMap[gabungKey].output += row.output;
+
+      // Akumulasi total fisik baris data
+      shiftKalkulasi[s].totalOutput += row.output;
+      grandTotalOutputBulanIni += row.output;
+
+      const hitungBatch = row.output > 0 ? (row.output / pembagi) : 0;
+      shiftKalkulasi[s].totalBatch += hitungBatch;
+      grandTotalBatchBulanIni += hitungBatch;
+
+      // Sinkronisasi data pie-chart secara proporsional per baris data agar chart selaras dengan 1.18
+      const batasMaksimalBaris = Math.round(pembagi * 1.3);
+      shiftKalkulasi[s].totalTargetAsliKumulatif += pembagi;
+
+      if (row.output <= pembagi) {
+        shiftKalkulasi[s].partAsli += row.output;
+        shiftKalkulasi[s].partKosong += (batasMaksimalBaris - row.output);
+      } else {
+        const overTerisi = row.output - pembagi;
+        shiftKalkulasi[s].partAsli += pembagi;
+        shiftKalkulasi[s].partOver += overTerisi;
+        shiftKalkulasi[s].partKosong += Math.max(0, batasMaksimalBaris - row.output);
+
+        // Akumulasi desimal over murni tanpa pembulatan apa pun di dalam loop
+        shiftKalkulasi[s].totalBatchOver += (overTerisi / pembagi);
+      }
+    }
+  });
+
+  let listShiftHTML = "";
+  [1, 2, 3].forEach(s => {
+    const arrayRows = Object.keys(shiftKalkulasi[s].groupMap).map(key => {
+      const detailG = shiftKalkulasi[s].groupMap[key];
+      return `<div>${key} <span class="badge-out">${detailG.output.toLocaleString('id-ID')}</span></div>`;
+    });
+
+    let headerOutputTotalHTML = "";
+    if (arrayRows.length > 0) {
+      headerOutputTotalHTML = `<div class="total-header-row">| Output total : ${shiftKalkulasi[s].totalOutput.toLocaleString('id-ID')} box | ${potongDesimalTanpaBuletin(shiftKalkulasi[s].totalBatch, 2)} Batch</div>`;
     }
 
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            datasets: [{
-                data: dataChart,
-                backgroundColor: warnaChart,
-                borderWidth: 1,
-                borderColor: '#cbd5e1', 
-                hoverBorderWidth: 0,
-                cutout: '74%'
-            }]
-        },
-        options: {
-            rotation: -90,
-            circumference: 180,
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: {
-                animateRotate: true,
-                animateScale: false
-            },
-            plugins: {
-                tooltip: { enabled: false },
-                legend: { display: false }
+    listShiftHTML += `
+      <div class="shift-detail-row">
+        <strong>Shift ${s} (Akumulatif):</strong>
+        <div class="shift-items-list">
+          ${headerOutputTotalHTML}
+          ${arrayRows.join("") || '<div class="no-data">Tidak ada produksi periode ini</div>'}
+        </div>
+      </div>
+    `;
+  });
+
+  const sectionBlock = document.createElement("div");
+  sectionBlock.className = "date-section-block";
+
+  let labelJudulAkumulatif = `bulan ${filterBulan.toLowerCase()} 2026`;
+  if (filterBulan === "all") {
+    labelJudulAkumulatif = `tahun 2026`;
+  }
+
+  const customWrapperAkumulatif = `
+    <div class="grand-total-bar" style="background: white; padding: 14px 20px; border-radius: 8px; border: 1px solid var(--border-color); border-left: 5px solid #4f46e5; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); font-weight: 700; color: #0f172a; font-size: 14px; margin-bottom: 20px; display: flex; align-items: center; gap: 4px;">
+      Output total ${mesinId.toLowerCase()} ${labelJudulAkumulatif} : ${grandTotalOutputBulanIni.toLocaleString('id-ID')} box ${potongDesimalTanpaBuletin(grandTotalBatchBulanIni, 2)} batch
+    </div>
+  `;
+
+  sectionBlock.innerHTML = `
+    <div class="speedometer-row">
+      <div class="speedometer-card">
+        <div class="chart-wrapper">
+          <canvas id="gauge-m-s1"></canvas>
+          <div class="speedo-batch-text">${potongDesimalTanpaBuletin(shiftKalkulasi[1].totalBatch, 2)}</div>
+        </div>
+        <div class="speedo-label">Shift 1</div>
+        <div class="speedo-box-text">${shiftKalkulasi[1].totalOutput.toLocaleString('id-ID')} box</div>
+      </div>
+      <div class="speedometer-card">
+        <div class="chart-wrapper">
+          <canvas id="gauge-m-s2"></canvas>
+          <div class="speedo-batch-text">${potongDesimalTanpaBuletin(shiftKalkulasi[2].totalBatch, 2)}</div>
+        </div>
+        <div class="speedo-label">Shift 2</div>
+        <div class="speedo-box-text">${shiftKalkulasi[2].totalOutput.toLocaleString('id-ID')} box</div>
+      </div>
+      <div class="speedometer-card">
+        <div class="chart-wrapper">
+          <canvas id="gauge-m-s3"></canvas>
+          <div class="speedo-batch-text">${potongDesimalTanpaBuletin(shiftKalkulasi[3].totalBatch, 2)}</div>
+        </div>
+        <div class="speedo-label">Shift 3</div>
+        <div class="speedo-box-text">${shiftKalkulasi[3].totalOutput.toLocaleString('id-ID')} box</div>
+      </div>
+    </div>
+    <div class="shift-breakdown-box">
+      ${customWrapperAkumulatif}
+      ${listShiftHTML}
+    </div>
+  `;
+
+  containerRender.appendChild(sectionBlock);
+
+  buatGaugeChartAkumulatif("gauge-m-s1", shiftKalkulasi[1], "#2dd4bf");
+  buatGaugeChartAkumulatif("gauge-m-s2", shiftKalkulasi[2], "#fbbf24");
+  buatGaugeChartAkumulatif("gauge-m-s3", shiftKalkulasi[3], "#818cf8");
+}
+
+// ========================================== //
+// DOUGHNUT SPEEDOMETER GAUGE - HARIAN //
+// ========================================== //
+function buatGaugeChart(canvasId, totalOutputValue, targetAsliValue, colorTheme) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+
+  const targetAman = targetAsliValue > 0 ? targetAsliValue : 10928;
+  const batasMaksimalGauge = Math.round(targetAman * 1.3);
+
+  let maxGaugeScale = Math.max(batasMaksimalGauge, totalOutputValue);
+  let dataChart = [];
+  let warnaChart = [];
+
+  if (totalOutputValue <= targetAman) {
+    const sisaKeTargetAsli = targetAman - totalOutputValue;
+    const areaOverKosong = maxGaugeScale - targetAman;
+    dataChart = [totalOutputValue, sisaKeTargetAsli, areaOverKosong];
+    warnaChart = [colorTheme, '#cbd5e1', '#e2e8f0'];
+  } else {
+    const bagianOverTerisi = totalOutputValue - targetAman;
+    const sisaOverKosong = maxGaugeScale - totalOutputValue;
+    dataChart = [targetAman, bagianOverTerisi, sisaOverKosong];
+    warnaChart = [colorTheme, '#3b82f6', '#e2e8f0'];
+  }
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Target Asli/Terisi', 'Sisa Target / Output Box Tambahan', 'Pie Kosong'],
+      datasets: [{
+        data: dataChart,
+        backgroundColor: warnaChart,
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        hoverBorderWidth: 0,
+        cutout: '74%'
+      }]
+    },
+    options: {
+      rotation: -90,
+      circumference: 180,
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        animateRotate: true,
+        animateScale: false
+      },
+      plugins: {
+        tooltip: {
+          enabled: true,
+          backgroundColor: 'rgba(15, 23, 42, 0.85)',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          padding: 8,
+          cornerRadius: 6,
+          displayColors: false,
+          callbacks: {
+            title: function() { return ''; },
+            label: function(context) {
+              const indexPie = context.dataIndex;
+              const nilaiBox = context.raw;
+              const batchProporsional = targetAman > 0 ? (nilaiBox / targetAman) : 0;
+
+              if (totalOutputValue <= targetAman) {
+                if (indexPie === 0) {
+                  return `Target Terisi: ${nilaiBox.toLocaleString('id-ID')} box`;
+                } else if (indexPie === 1) {
+                  return `Sisa Target: ${nilaiBox.toLocaleString('id-ID')} box (${potongDesimalTanpaBuletin(batchProporsional, 2)} batch)`;
+                }
+                return null;
+              } else {
+                if (indexPie === 0) {
+                  return `Target Asli: ${nilaiBox.toLocaleString('id-ID')} box`;
+                } else if (indexPie === 1) {
+                  return [
+                    `Output Box Tambahan: ${nilaiBox.toLocaleString('id-ID')} box`,
+                    `Output Batch Tambahan: ${potongDesimalTanpaBuletin(batchProporsional, 2)} batch`
+                  ];
+                }
+                return null;
+              }
             }
+          }
         },
-        plugins: [{
-            id: 'targetLinePlugin',
-            afterDraw: (chart) => {
-                const { ctx, chartArea } = chart;
-                const meta = chart.getDatasetMeta(0);
-                
-                const centerPointX = (chartArea.left + chartArea.right) / 2;
-                const centerPointY = chartArea.bottom;
-                
-                const outerRadius = meta.data && meta.data[0] ? meta.data[0].outerRadius : (chartArea.right - chartArea.left) / 2;
-                const innerRadius = meta.data && meta.data[0] ? meta.data[0].innerRadius : outerRadius * 0.74;
+        legend: { display: false }
+      }
+    },
+    plugins: [{
+      id: 'targetLinePlugin',
+      afterDraw: (chart) => {
+        const { ctx, chartArea } = chart;
+        const meta = chart.getDatasetMeta(0);
+        const centerPointX = (chartArea.left + chartArea.right) / 2;
+        const centerPointY = chartArea.bottom;
 
-                const proporsiTarget = targetAman / maxGaugeScale;
-                const angleTargetRad = -Math.PI + (Math.PI * proporsiTarget);
+        const outerRadius = meta.data && meta.data[0] ? meta.data[0].outerRadius : (chartArea.right - chartArea.left) / 2;
+        const innerRadius = meta.data && meta.data[0] ? meta.data[0].innerRadius : outerRadius * 0.74;
 
-                const startX = centerPointX + Math.cos(angleTargetRad) * innerRadius;
-                const startY = centerPointY + Math.sin(angleTargetRad) * innerRadius;
-                const endX = centerPointX + Math.cos(angleTargetRad) * (outerRadius + 4);
-                const endY = centerPointY + Math.sin(angleTargetRad) * (outerRadius + 4);
+        const proporsiTarget = targetAman / maxGaugeScale;
+        const angleTargetRad = -Math.PI + (Math.PI * proporsiTarget);
 
-                ctx.save();
-                ctx.beginPath();
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
-                ctx.lineWidth = 3;           
-                ctx.strokeStyle = '#ef4444'; 
-                ctx.stroke();
-                ctx.restore();
-            }
-        }]
-    });
+        const startX = centerPointX + Math.cos(angleTargetRad) * innerRadius;
+        const startY = centerPointY + Math.sin(angleTargetRad) * innerRadius;
+        const endX = centerPointX + Math.cos(angleTargetRad) * (outerRadius + 4);
+        const endY = centerPointY + Math.sin(angleTargetRad) * (outerRadius + 4);
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#ef4444';
+        ctx.stroke();
+        ctx.restore();
+      }
+    }]
+  });
+}
+
+// ========================================== //
+// DOUGHNUT SPEEDOMETER GAUGE - AKUMULATIF //
+// ========================================== //
+function buatGaugeChartAkumulatif(canvasId, dataShiftObj, colorTheme) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+
+  const totalAsli = dataShiftObj.partAsli;
+  const totalOver = dataShiftObj.partOver;
+  const totalKosong = dataShiftObj.partKosong;
+  
+  // HAPUS PIE OVER WARNA BIRU DI AKUMULATIF: Gabung partAsli dan partOver jadi 1 warna murni (colorTheme)
+  const totalTerisiKumulatif = totalAsli + totalOver;
+  const totalSkala = totalTerisiKumulatif + totalKosong;
+
+  const dataChart = totalSkala > 0 ? [totalTerisiKumulatif, totalKosong] : [0, 100];
+  const warnaChart = [colorTheme, '#e2e8f0'];
+
+  new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Total Output Terisi', 'Pie Kosong'],
+      datasets: [{
+        data: dataChart,
+        backgroundColor: warnaChart,
+        borderWidth: 1,
+        borderColor: '#cbd5e1',
+        hoverBorderWidth: 0,
+        cutout: '74%'
+      }]
+    },
+    options: {
+      rotation: -90,
+      circumference: 180,
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        animateRotate: true,
+        animateScale: false
+      },
+      plugins: {
+        // TOOLTIP BUANG DI FILTER BULANAN/TAHUNAN
+        tooltip: {
+          enabled: false
+        },
+        legend: { display: false }
+      }
+    }
+  });
 }
