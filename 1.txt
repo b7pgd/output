@@ -1,0 +1,2 @@
+SELECT * FROM public.tb_work_orders
+WHERE no_batch = 'JG031'

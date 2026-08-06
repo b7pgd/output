@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial Akses & Edit Data pgAdmin4 - Batch Track</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --primary-border: #bfdbfe;
+            --accent: #2563eb;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --code-bg: #0f172a;
+            --code-text: #f8fafc;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 20px 15px 60px 15px;
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: #ffffff;
+            padding: 32px 28px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.25);
+        }
+
+        .header h1 {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 0.98rem;
+            color: #dbeafe;
+            font-weight: 400;
+        }
+
+        /* Step Card */
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .step-card:hover {
+            box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.06);
+        }
+
+        .step-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 16px;
+        }
+
+        .step-number {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid var(--primary-border);
+            font-weight: 700;
+            font-size: 0.95rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-main);
+            padding-top: 4px;
+        }
+
+        /* Credentials Box (Step 1) */
+        .cred-box {
+            background: var(--primary-light);
+            border: 1px solid var(--primary-border);
+            border-radius: 10px;
+            padding: 16px;
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .cred-item {
+            background: #ffffff;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #dbeafe;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cred-label {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .cred-value {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.95rem;
+        }
+
+        /* Image Styling */
+        .image-container {
+            margin-top: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .img-wrapper {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            background-color: #f1f5f9;
+            cursor: pointer;
+            max-width: 550px;
+            width: 100%;
+        }
+
+        .img-wrapper img {
+            width: 100%;
+            display: block;
+            height: auto;
+            transition: transform 0.25s ease;
+        }
+
+        .img-wrapper:hover img {
+            transform: scale(1.015);
+        }
+
+        /* Code Box (Step 9 / 1.txt) */
+        .code-block {
+            margin-top: 16px;
+            background: var(--code-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .code-header {
+            background: #1e293b;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+        }
+
+        .code-filename {
+            color: #94a3b8;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.82rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .copy-btn {
+            background: #334155;
+            color: #f8fafc;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover {
+            background: var(--accent);
+            color: white;
+        }
+
+        .code-content {
+            padding: 16px;
+            color: var(--code-text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        /* Important Note Box */
+        .note-card {
+            background: #fefce8;
+            border: 1px solid #fef08a;
+            border-left: 4px solid #eab308;
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+
+        .note-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #854d0e;
+            margin-bottom: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .note-content {
+            font-size: 0.95rem;
+            color: #1e293b;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .note-sublist {
+            margin-left: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 6px;
+        }
+
+        .note-code-inline {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.88rem;
+            margin-top: 6px;
+            color: #0f172a;
+        }
+
+        /* Modal Lightbox */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            opacity: 1;
+        }
+
+        .modal-content {
+            max-width: 92%;
+            max-height: 82vh;
+            border-radius: 8px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+            object-fit: contain;
+            background: #fff;
+        }
+
+        .modal-actions {
+            margin-top: 16px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .modal-btn {
+            background: #ffffff;
+            color: var(--text-main);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.88rem;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .modal-btn:hover {
+            background: #f1f5f9;
+            transform: translateY(-1px);
+        }
+
+        .modal-btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .modal-btn-primary:hover {
+            background: var(--primary-hover);
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+
+        .close-modal:hover {
+            color: #93c5fd;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 640px) {
+            .header h1 { font-size: 1.4rem; }
+            .step-card, .note-card { padding: 18px; }
+            .cred-box { grid-template-columns: 1fr; }
+            .img-wrapper { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Panduan Akses & Update Database pgAdmin4</h1>
+        <p>Petunjuk langkah demi langkah pencarian dan pembaruan data batch pada sistem Batch Track</p>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">1</div>
+            <div class="step-title">
+                Masuk ke laptop menggunakan akun berikut:
+                <div class="cred-box">
+                    <div class="cred-item">
+                        <span class="cred-label">User</span>
+                        <span class="cred-value">diyana.kumala</span>
+                    </div>
+                    <div class="cred-item">
+                        <span class="cred-label">Sandi</span>
+                        <span class="cred-value">Kalbe2025!</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">2</div>
+            <div class="step-title">Masuk ke menu search dan cari software "pgAdmin4" lalu klik 2 kali</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('1.png')">
+                <img src="1.png" alt="Cari pgAdmin4" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">3</div>
+            <div class="step-title">Pilih tabel "PCT" dan klik 2 kali</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('2.png')">
+                <img src="2.png" alt="Pilih PCT" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            <div class="step-title">Pilih "Databases" dan klik 2 kali</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('3-0.png')">
+                <img src="3-0.png" alt="Pilih Databases" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">5</div>
+            <div class="step-title">Cari database dengan nama "db_batchtrack_go" dan klik 2 kali</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('3.png')">
+                <img src="3.png" alt="Cari db_batchtrack_go" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">6</div>
+            <div class="step-title">Cari tulisan "Schemas" dan klik 2 kali</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('4-0.png')">
+                <img src="4-0.png" alt="Cari Schemas" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">7</div>
+            <div class="step-title">Cari tulisan "Tables" dan klik 2 kali</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('4.png')">
+                <img src="4.png" alt="Cari Tables" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 8 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">8</div>
+            <div class="step-title">Cari tulisan "tb_work_orders" lalu klik kanan dan pilih "View/Edit Data" lalu pilih "All Rows" dan klik 1 kali</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('5.png')">
+                <img src="5.png" alt="Klik Kanan tb_work_orders" loading="lazy">
+            </div>
+            <div class="img-wrapper" onclick="openModal('6.png')">
+                <img src="6.png" alt="View/Edit Data -> All Rows" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 9 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">9</div>
+            <div class="step-title">Lalu pada kolom seperti gambar di bawah, copas code berikut dan masukan ke kolom tersebut lalu edit nomor batch yang akan dicari dan klik tombol play ▶</div>
+        </div>
+
+        <!-- Code Box for 1.txt -->
+        <div class="code-block">
+            <div class="code-header">
+                <span class="code-filename">
+                    📄 1.txt (SQL Query)
+                </span>
+                <button class="copy-btn" onclick="copyCodeText('sqlCode', 'copyBtn')" id="copyBtn">
+                    📋 Copy Code
+                </button>
+            </div>
+            <pre class="code-content" id="sqlCode">SELECT * FROM public.tb_work_orders
+WHERE no_batch = 'JG031'</pre>
+        </div>
+
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('7.png')">
+                <img src="7.png" alt="Input SQL Query & Execute" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 10 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">10</div>
+            <div class="step-title">Hasil klik play tadi akan muncul nomor batch yang sesuai dengan yang dicari, lalu geser ke kanan dan cari tabel yang bernilai <code>[null]</code></div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('8.png')">
+                <img src="8.png" alt="Hasil Query Batch & Cari Field Null" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 11 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">11</div>
+            <div class="step-title">Masukan informasi yang sesuai dengan kondisi aktual di lapangan seperti nomor mesin dan jam start filling-nya, lalu klik button save seperti yang ada di lingkaran merah. Setelah berhasil, data akan terupdate.</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('9.png')">
+                <img src="9.png" alt="Update Data & Save" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <!-- Catatan Penting -->
+    <div class="note-card">
+        <div class="note-title">
+            📌 Catatan Penting!
+        </div>
+        <div class="note-content">
+            <p><strong>1.</strong> Tutorial ini dilakukan jika nomer batch yang di cari tidak muncul di kolom pencarian batch track dan audit trail</p>
+            <div>
+                <p><strong>2.</strong> Beberapa case yang sering terjadi dan cara penangananya</p>
+                <div class="note-sublist">
+                    <div>
+                        <p><strong>A.</strong> Batch aktual sudah di serah terima bpp, tapi ternyata data nyangkut di card filling, lalu lakukan pengisian secara manual di baris berikut beserta contohnya</p>
+                        <div class="note-code-inline">
+                            mesin_filling : Ilapak No 1<br>
+                            kirim_ke_sample_fg : 2026-08-05 08:50:00
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">sesuai seperti yang ada di foto nomer 11</p>
+                    </div>
+                    <div>
+                        <p><strong>B.</strong> Proses compounding sudah selesai di step Transfer Storage dan akan mengirim ke step selanjutnya, tapi storage yang sesuai tidak muncul, maka masukan kode berikut ke kolom di pgAdmin4 dan klik play</p>
+                        <div class="code-block" style="margin-top: 8px;">
+                            <div class="code-header">
+                                <span class="code-filename">📄 SQL Query Storage Tank</span>
+                                <button class="copy-btn" onclick="copyCodeText('sqlCodeStorage', 'copyBtnStorage')" id="copyBtnStorage">
+                                    📋 Copy Code
+                                </button>
+                            </div>
+                            <pre class="code-content" id="sqlCodeStorage">SELECT * FROM public.tb_work_orders
+WHERE storage_tank = 'ST02_SLVRSN'</pre>
+                        </div>
+                        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">lalu cari apakah ada ketidak sesuaian antara mixing_tank dengan storage_tank nya karena biasanya terjadi kesalahan input misal mixing tank Tetra 2 tapi milih storage_tank nya ST02_SLVRSN</p>
+                    </div>
+                    <div>
+                        <p><strong>C.</strong> jika ingin mecari data lain untuk di telusuri, ganti tulisan 'WHERE no_batch' ke baris yang lain misal 'WHERE storage_tank' , 'WHERE mixing_tank' dan lain-lain</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; Panduan Operasional Sistem Batch Track - pgAdmin4
+    </div>
+</div>
+
+<!-- Modal Lightbox -->
+<div id="imageModal" class="modal">
+    <span class="close-modal" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="modalImg" alt="Preview Gambar">
+    <div class="modal-actions">
+        <a id="downloadBtn" class="modal-btn modal-btn-primary" download target="_blank">
+            ⬇️ Unduh / Simpan Gambar
+        </a>
+        <button class="modal-btn" onclick="closeModal()">
+            Tutup
+        </button>
+    </div>
+</div>
+
+<script>
+    // Generic Copy Code Functionality
+    function copyCodeText(elementId, btnId) {
+        const codeText = document.getElementById(elementId).innerText;
+        navigator.clipboard.writeText(codeText).then(() => {
+            const btn = document.getElementById(btnId);
+            btn.innerHTML = '✅ Copied!';
+            btn.style.backgroundColor = '#16a34a';
+            setTimeout(() => {
+                btn.innerHTML = '📋 Copy Code';
+                btn.style.backgroundColor = '#334155';
+            }, 2000);
+        }).catch(err => {
+            alert('Gagal menyalin teks: ' + err);
+        });
+    }
+
+    // Modal Image Lightbox
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    function openModal(src) {
+        modal.classList.add('show');
+        modalImg.src = src;
+        downloadBtn.href = src;
+    }
+
+    function closeModal() {
+        modal.classList.remove('show');
+    }
+
+    // Close Modal on clicking outside image
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+            closeModal();
+        }
+    });
+
+    // Close Modal on ESC key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeModal();
+        }
+    });
+</script>
+
+</body>
+</html>
