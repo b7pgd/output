@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tutorial Guide</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e40af;
+            --primary-hover: #1d4ed8;
+            --primary-light: #eff6ff;
+            --primary-border: #bfdbfe;
+            --accent: #2563eb;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --bg-body: #f8fafc;
+            --bg-card: #ffffff;
+            --border-color: #e2e8f0;
+            --code-bg: #2d3748;
+            --code-text: #edf2f7;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 20px 15px 60px 15px;
+        }
+
+        .container { max-width: 860px; margin: 0 auto; }
+
+        .header {
+            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+            color: #ffffff;
+            padding: 32px 28px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(30, 64, 175, 0.25);
+        }
+
+        .header h1 { font-size: 1.85rem; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.02em; }
+
+        .step-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .step-card:hover { box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.06); }
+
+        .step-header { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px; }
+
+        .step-number {
+            background-color: var(--primary-light);
+            color: var(--primary);
+            border: 1px solid var(--primary-border);
+            font-weight: 700;
+            font-size: 0.95rem;
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .step-title {
+            font-size: 1.05rem;
+            font-weight: 600;
+            color: var(--text-main);
+            padding-top: 4px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .image-container { margin-top: 16px; display: flex; flex-direction: column; align-items: center; gap: 16px; }
+
+        .img-wrapper {
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            background-color: #f1f5f9;
+            cursor: pointer;
+            max-width: 550px;
+            width: 100%;
+        }
+
+        .img-wrapper img { width: 100%; display: block; height: auto; transition: transform 0.25s ease; }
+        .img-wrapper:hover img { transform: scale(1.015); }
+
+        .code-block {
+            margin-top: 16px;
+            background: var(--code-bg);
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #4a5568;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .code-header {
+            background: #1a202c;
+            padding: 10px 16px;
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            border-bottom: 1px solid #4a5568;
+        }
+
+        .copy-btn {
+            background: #4a5568;
+            color: #edf2f7;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .copy-btn:hover { background: var(--accent); color: white; }
+
+        .code-content {
+            padding: 16px;
+            color: var(--code-text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(15, 23, 42, 0.88);
+            backdrop-filter: blur(6px);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            padding: 20px;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+        }
+
+        .modal.show { display: flex; opacity: 1; }
+        .modal-content { max-width: 92%; max-height: 82vh; border-radius: 8px; object-fit: contain; background: #fff; }
+        .modal-actions { margin-top: 16px; display: flex; gap: 12px; }
+        .modal-btn {
+            background: #ffffff; color: var(--text-main); border: none; padding: 10px 20px;
+            border-radius: 8px; font-weight: 600; font-size: 0.88rem; cursor: pointer; text-decoration: none;
+            display: inline-flex; align-items: center; gap: 8px; transition: background 0.2s;
+        }
+        .modal-btn:hover { background: #f1f5f9; }
+        .modal-btn-primary { background: var(--accent); color: white; }
+        .modal-btn-primary:hover { background: var(--primary-hover); }
+
+        .close-modal {
+            position: absolute; top: 20px; right: 25px; color: #ffffff;
+            font-size: 32px; font-weight: bold; cursor: pointer; line-height: 1;
+        }
+
+        .footer {
+            text-align: center; color: var(--text-muted); font-size: 0.85rem;
+            margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 640px) {
+            .header h1 { font-size: 1.4rem; }
+            .step-card { padding: 18px; }
+            .img-wrapper { max-width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>Tutorial Guide</h1>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">1</div>
+            <div class="step-title">Download file zip dan extract folder b7_inspeksi ke D atau E (jangan di C), kemudian buka folder tersebut</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('1.jpg')">
+                <img src="1.jpg" alt="Gambar Step 1" loading="lazy">
+            </div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('2.jpg')">
+                <img src="2.jpg" alt="Gambar Step 1" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">2</div>
+            <div class="step-title">klik kanan database lalu buka menggunakan notepad, lalu copy semua isi nya dan exit</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('3.jpg')">
+                <img src="3.jpg" alt="Gambar Step 2" loading="lazy">
+            </div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('4.jpg')">
+                <img src="4.jpg" alt="Gambar Step 2" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">3</div>
+            <div class="step-title">buka Postgree, kemudian pilih Database, dan klik kanan pada database -&gt; Create -&gt; Database</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('5.jpg')">
+                <img src="5.jpg" alt="Gambar Step 3" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            <div class="step-title">masukan nama database = db_inspeksi , kemudian klik save</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('6.jpg')">
+                <img src="6.jpg" alt="Gambar Step 4" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">5</div>
+            <div class="step-title">klik kanan pada db_inspeksi, kemudian pilih query tool</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('7.jpg')">
+                <img src="7.jpg" alt="Gambar Step 5" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">6</div>
+            <div class="step-title">lalu masukan database.sql tadi yang di copy dari notepad, dan klik button seperti yang ditandai warna merah sampai muncul messages seperti yang tertera dibawah, kemudian exit postgree</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('8.jpg')">
+                <img src="8.jpg" alt="Gambar Step 6" loading="lazy">
+            </div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('9.jpg')">
+                <img src="9.jpg" alt="Gambar Step 6" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">7</div>
+            <div class="step-title">lalu balik ke folder awal, dan klik kanan pada file installer.exe dan pilih opsi Run as administrator, jika muncul pesan Do you want to apply maka klik Yes</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('10.jpg')">
+                <img src="10.jpg" alt="Gambar Step 7" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">8</div>
+            <div class="step-title">kemudian muncul CMD dan ketik R lalu enter, tunggu sampai proses instalasi selesai dan muncul informasi ip address dan muncul notifikasi Seluruh Layanan Berhasil di install dan di jalankan,
+kemudian copy ip adrress dan port nya dan jangan close terminal CMD nya</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('11.jpg')">
+                <img src="11.jpg" alt="Gambar Step 8" loading="lazy">
+            </div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('12.jpg')">
+                <img src="12.jpg" alt="Gambar Step 8" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">9</div>
+            <div class="step-title">lalu akses alamat tersebut di browser dengan login
+user : admin
+pass : admin123</div>
+        </div>
+        <div class="image-container">
+            <div class="img-wrapper" onclick="openModal('13.jpg')">
+                <img src="13.jpg" alt="Gambar Step 9" loading="lazy">
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        &copy; Tutorial System
+    </div>
+</div>
+
+<div id="imageModal" class="modal">
+    <span class="close-modal" onclick="closeModal()">&times;</span>
+    <img class="modal-content" id="modalImg" alt="Preview Gambar">
+    <div class="modal-actions">
+        <a id="downloadBtn" class="modal-btn modal-btn-primary" download target="_blank">
+            ⬇️ Unduh / Simpan Gambar
+        </a>
+        <button class="modal-btn" onclick="closeModal()">Tutup</button>
+    </div>
+</div>
+
+<script>
+    function copyCodeText(elementId, btnId) {
+        const codeText = document.getElementById(elementId).innerText;
+        navigator.clipboard.writeText(codeText).then(() => {
+            const btn = document.getElementById(btnId);
+            btn.innerHTML = '✅ Copied!';
+            btn.style.backgroundColor = '#16a34a';
+            setTimeout(() => {
+                btn.innerHTML = '📋 Copy Code';
+                btn.style.backgroundColor = '#4a5568';
+            }, 2000);
+        }).catch(err => {
+            alert('Gagal menyalin teks: ' + err);
+        });
+    }
+
+    const modal = document.getElementById('imageModal');
+    const modalImg = document.getElementById('modalImg');
+    const downloadBtn = document.getElementById('downloadBtn');
+
+    function openModal(src) {
+        modal.classList.add('show');
+        modalImg.src = src;
+        downloadBtn.href = src;
+    }
+
+    function closeModal() {
+        modal.classList.remove('show');
+    }
+
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) closeModal();
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeModal();
+    });
+</script>
+
+</body>
+</html>
