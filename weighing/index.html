@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analisis Penimbangan Master Box</title>
+
+  <!-- Google Fonts for Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Library jsPDF via CDN untuk export PDF client-side langsung dari object data -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- PDF.js Library & Worker (Diperlukan oleh engine1.js) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+    }
+  </script>
+
+  <!-- Dependency Scripts (engine1.js dan engine2.js diasumsikan berada dalam direktori yang sama) -->
+  <script src="engine1.js"></script>
+  <script src="engine2.js"></script>
+
+  <style>
+    /* Reset & Base Styling */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+      color: #1e293b;
+      line-height: 1.6;
+      padding: 40px 16px;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      padding: 32px 36px;
+      border-radius: 12px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+    }
+
+    /* Header Design */
+    .app-header {
+      text-align: center;
+      margin-bottom: 28px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #f1f5f9;
+    }
+
+    .app-header .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background-color: #e0f2fe;
+      color: #0369a1;
+      font-weight: 600;
+      font-size: 0.75rem;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Upload Area */
+    .upload-section {
+      margin-bottom: 20px;
+    }
+
+    .file-drop-area {
+      border: 2px dashed #93c5fd;
+      background-color: #f8fafc;
+      padding: 28px 20px;
+      text-align: center;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.25s ease-in-out;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .file-drop-area:hover {
+      background-color: #f0f9ff;
+      border-color: #2563eb;
+      transform: translateY(-1px);
+    }
+
+    .file-drop-area input[type="file"] {
+      display: none;
+    }
+
+    .upload-icon {
+      width: 42px;
+      height: 42px;
+      margin-bottom: 10px;
+      fill: #3b82f6;
+    }
+
+    .file-label {
+      display: inline-block;
+      padding: 9px 20px;
+      background-color: #2563eb;
+      color: #ffffff;
+      font-weight: 600;
+      font-size: 0.875rem;
+      border-radius: 6px;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+      transition: background-color 0.2s;
+    }
+
+    .file-label:hover {
+      background-color: #1d4ed8;
+    }
+
+    .file-info {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #64748b;
+      word-break: break-all;
+      font-weight: 500;
+    }
+
+    /* Action Buttons */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      padding: 12px 20px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #ffffff;
+      background-color: #2563eb;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s;
+      margin-bottom: 16px;
+      box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);
+    }
+
+    .btn:hover:not(:disabled) {
+      background-color: #1d4ed8;
+      box-shadow: 0 6px 8px -1px rgba(37, 99, 235, 0.3);
+    }
+
+    .btn:disabled {
+      background-color: #cbd5e1;
+      color: #94a3b8;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background-color: #059669;
+      box-shadow: 0 4px 6px -1px rgba(5, 150, 105, 0.2);
+    }
+
+    .btn-secondary:hover:not(:disabled) {
+      background-color: #047857;
+      box-shadow: 0 6px 8px -1px rgba(5, 150, 105, 0.3);
+    }
+
+    /* Status Messages */
+    .status-message {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .status-message.info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background-color: #f0f9ff;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+
+    .status-message.error {
+      display: block;
+      background-color: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+
+    /* Spinner Animation */
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #0369a1;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      animation: rotation 1s linear infinite;
+    }
+
+    @keyframes rotation {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Preview Card & Document Export Area */
+    .preview-card {
+      background-color: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 28px;
+      margin-top: 10px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+    }
+
+    .preview-header {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #1e3a8a;
+      border-bottom: 2px solid #dbeafe;
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .preview-group {
+      margin-bottom: 20px;
+      background-color: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      border: 1px solid #f1f5f9;
+    }
+
+    .preview-row {
+      display: flex;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+
+    .preview-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .preview-label {
+      width: 200px;
+      flex-shrink: 0;
+      color: #475569;
+      font-weight: 500;
+    }
+
+    .preview-separator {
+      width: 16px;
+      flex-shrink: 0;
+      color: #94a3b8;
+    }
+
+    .preview-value {
+      flex-grow: 1;
+      color: #0f172a;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .preview-subtitle {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #1e3a8a;
+      margin-bottom: 10px;
+      padding-bottom: 4px;
+      border-bottom: 1px dashed #cbd5e1;
+    }
+
+    .signature-area {
+      margin-top: 36px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .signature-box {
+      text-align: center;
+      width: 200px;
+      font-size: 0.875rem;
+      color: #475569;
+    }
+
+    .signature-space {
+      height: 60px;
+    }
+
+    /* Helper Utilities */
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 576px) {
+      body {
+        padding: 16px 8px;
+      }
+
+      .container {
+        padding: 20px 16px;
+      }
+
+      .preview-card {
+        padding: 16px;
+      }
+
+      .preview-row {
+        flex-direction: column;
+        margin-bottom: 10px;
+      }
+
+      .preview-label {
+        width: 100%;
+        font-weight: 600;
+        color: #64748b;
+        font-size: 0.8rem;
+      }
+
+      .preview-separator {
+        display: none;
+      }
+
+      .preview-value {
+        font-size: 0.95rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header class="app-header">
+      <h1>Analisis Data Penimbangan Master Box</h1>
+    </header>
+
+    <!-- Area Upload File -->
+    <div class="upload-section">
+      <div class="file-drop-area" onclick="document.getElementById('fileInput').click()">
+        <svg class="upload-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/>
+        </svg>
+        <span class="file-label">Pilih File PDF / DOCX</span>
+        <input
+          type="file"
+          id="fileInput"
+          accept="application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.docx"
+          onchange="handleFileSelection(event)"
+        >
+        <div id="fileInfo" class="file-info">Belum ada file yang dipilih (.pdf, .docx)</div>
+      </div>
+    </div>
+
+    <!-- Tombol Submit / Proses -->
+    <button id="processBtn" class="btn" onclick="handleProcess()" disabled>Proses File</button>
+
+    <!-- Status & Error Notification -->
+    <div id="statusContainer" class="status-message hidden"></div>
+
+    <!-- Container Preview Hasil -->
+    <div id="previewContainer" class="hidden">
+      <div id="pdfExportArea" class="preview-card">
+        <div class="preview-header">Hasil Analisis Penimbangan Master Box</div>
+
+        <div class="preview-group">
+          <div class="preview-row">
+            <span class="preview-label">No Schedule :</span>
+            <span id="resSchedule" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Nama Produk :</span>
+            <span id="resProductName" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Kode Produk :</span>
+            <span id="resProductCode" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Kode Batch :</span>
+            <span id="resBatchCode" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Weigher :</span>
+            <span id="resWeigher" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Packer :</span>
+            <span id="resPacker" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Tanggal timbang :</span>
+            <span id="resWeighingDate" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Shift :</span>
+            <span id="resShift" class="preview-value"></span>
+          </div>
+        </div>
+
+        <div class="preview-group">
+          <div class="preview-row">
+            <span class="preview-label">Bobot karton terendah :</span>
+            <span id="resLowestWeight" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Bobot karton tertinggi :</span>
+            <span id="resHighestWeight" class="preview-value"></span>
+          </div>
+          <div class="preview-row">
+            <span class="preview-label">Berat batas verifikasi :</span>
+            <span id="resVerificationLimit" class="preview-value"></span>
+          </div>
+        </div>
+
+        <div class="preview-group">
+          <div class="preview-subtitle">Hasil analisis bobot</div>
+          <div class="preview-row">
+            <span id="resComparison" class="preview-value"></span>
+          </div>
+          <div class="preview-row" style="margin-top: 6px;">
+            <span class="preview-label">Kesimpulan :</span>
+            <span id="resConclusion" class="preview-value"></span>
+          </div>
+        </div>
+
+        <div class="signature-area">
+          <div class="signature-box">
+            <p>Petugas Analis,</p>
+            <div class="signature-space"></div>
+            <p>(..............................)</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tombol Download PDF -->
+      <button id="downloadBtn" class="btn btn-secondary" onclick="generateResultPdf(currentAnalysisResult)">Download PDF</button>
+    </div>
+  </div>
+
+  <script>
+    /* Global Application State */
+    let selectedFile = null;
+    let currentAnalysisResult = null;
+
+    /**
+     * Formatting helper function
+     * Menghasilkan nilai numerik dengan presisi tepat 3 angka desimal.
+     */
+    function formatWeight(value) {
+      if (value === null || value === undefined || isNaN(value)) {
+        return "-";
+      }
+      return Number(value).toFixed(3);
+    }
+
+    /**
+     * Event Handler: Memilih/mengganti file input
+     */
+    function handleFileSelection(event) {
+      const files = event.target.files;
+      const fileInfo = document.getElementById("fileInfo");
+      const processBtn = document.getElementById("processBtn");
+
+      if (files && files.length > 0) {
+        selectedFile = files[0];
+
+        // Format ukuran file
+        let sizeStr = "";
+        if (selectedFile.size < 1024 * 1024) {
+          sizeStr = (selectedFile.size / 1024).toFixed(1) + " KB";
+        } else {
+          sizeStr = (selectedFile.size / (1024 * 1024)).toFixed(2) + " MB";
+        }
+
+        // Tampilkan info file
+        fileInfo.textContent = selectedFile.name + " (" + sizeStr + ")";
+        processBtn.disabled = false;
+
+        // Sembunyikan status dan preview sebelumnya jika ada
+        clearError();
+        clearPreview();
+      } else {
+        selectedFile = null;
+        fileInfo.textContent = "Belum ada file yang dipilih (.pdf, .docx)";
+        processBtn.disabled = true;
+      }
+    }
+
+    /**
+     * Event Handler: Proses Dokumen
+     * Orchestrator utama yang menghubungkan engine1.js dan engine2.js
+     */
+    async function handleProcess() {
+      const processBtn = document.getElementById("processBtn");
+
+      // Validasi Pemilihan File
+      if (!selectedFile) {
+        renderError("Silakan pilih file PDF atau DOCX terlebih dahulu.");
+        return;
+      }
+
+      // Transition State -> PROCESSING
+      processBtn.disabled = true;
+      renderLoading();
+      clearPreview();
+
+      try {
+        // Step 1: Panggil Engine 1 (Parsing Dokumen)
+        if (typeof parseDocument !== 'function') {
+          throw new Error("Fungsi parseDocument() dari engine1.js tidak ditemukan.");
+        }
+
+        const parsedResult = await parseDocument(selectedFile);
+
+        if (!parsedResult || parsedResult.success === false) {
+          const errMsg = (parsedResult && parsedResult.error) ? parsedResult.error : "Data bobot karton tidak ditemukan pada dokumen.";
+          throw new Error(errMsg);
+        }
+
+        // Step 2: Panggil Engine 2 (Analisis & Perhitungan Data)
+        if (typeof analyzeWeighingData !== 'function') {
+          throw new Error("Fungsi analyzeWeighingData() dari engine2.js tidak ditemukan.");
+        }
+
+        const analysisResult = analyzeWeighingData(parsedResult.data);
+
+        if (!analysisResult || analysisResult.success === false) {
+          const errMsg = (analysisResult && analysisResult.error) ? analysisResult.error : "Gagal melakukan analisis data penimbangan.";
+          throw new Error(errMsg);
+        }
+
+        // Transition State -> SUCCESS
+        currentAnalysisResult = analysisResult;
+        clearStatus();
+        renderResult(analysisResult);
+
+      } catch (error) {
+        // Transition State -> ERROR
+        console.error("Processing Error:", error);
+        currentAnalysisResult = null;
+        renderError(error.message || "File tidak dapat diproses.");
+      } finally {
+        // Re-enable Process button
+        processBtn.disabled = false;
+      }
+    }
+
+    /**
+     * UI Render Helper: Tampilkan Loading Status
+     */
+    function renderLoading() {
+      const statusEl = document.getElementById("statusContainer");
+      statusEl.className = "status-message info";
+      statusEl.innerHTML = `<span class="spinner"></span> Memproses dokumen...`;
+    }
+
+    /**
+     * UI Render Helper: Tampilkan Pesan Error
+     */
+    function renderError(message) {
+      const statusEl = document.getElementById("statusContainer");
+      statusEl.className = "status-message error";
+      statusEl.textContent = message || "Terjadi kesalahan saat memproses dokumen.";
+    }
+
+    /**
+     * UI Helper: Clear Error/Status Message
+     */
+    function clearError() {
+      clearStatus();
+    }
+
+    /**
+     * UI Helper: Clear Status Container
+     */
+    function clearStatus() {
+      const statusEl = document.getElementById("statusContainer");
+      statusEl.className = "status-message hidden";
+      statusEl.innerHTML = "";
+    }
+
+    /**
+     * UI Helper: Reset Preview Container
+     */
+    function clearPreview() {
+      const previewContainer = document.getElementById("previewContainer");
+      previewContainer.classList.add("hidden");
+
+      const fields = [
+        "resSchedule", "resProductName", "resProductCode", "resBatchCode",
+        "resWeigher", "resPacker", "resWeighingDate", "resShift",
+        "resLowestWeight", "resHighestWeight", "resVerificationLimit",
+        "resComparison", "resConclusion"
+      ];
+
+      fields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = "";
+      });
+    }
+
+    /**
+     * UI Render Helper: Menampilkan Hasil Analisis
+     * Menggunakan textContent secara ketat untuk mencegah XSS.
+     */
+    function renderResult(result) {
+      if (!result) return;
+
+      const meta = result.metadata || {};
+      const analysis = result.analysis || {};
+
+      // Safe Text Assignment (Anti-XSS / Security Compliance)
+      document.getElementById("resSchedule").textContent = meta.schedule || "-";
+      document.getElementById("resProductName").textContent = meta.productName || "-";
+      document.getElementById("resProductCode").textContent = meta.productCode || "-";
+      document.getElementById("resBatchCode").textContent = meta.batchCode || "-";
+      document.getElementById("resWeigher").textContent = meta.weigher || "-";
+      document.getElementById("resPacker").textContent = meta.packer || "-";
+      document.getElementById("resWeighingDate").textContent = meta.weighingDate || "-";
+      document.getElementById("resShift").textContent = meta.shift || "-";
+
+      document.getElementById("resLowestWeight").textContent = formatWeight(analysis.lowestWeight);
+      document.getElementById("resHighestWeight").textContent = formatWeight(analysis.highestWeight);
+      document.getElementById("resVerificationLimit").textContent = formatWeight(analysis.verificationLimit);
+
+      // Render comparison statement jika tersedia
+      let comparisonText = "";
+      if (analysis.comparison === "above") {
+        comparisonText = "Berat terendah > berat batas verifikasi";
+      } else if (analysis.comparison === "below" || analysis.comparison === "at_or_below") {
+        comparisonText = "Berat terendah ≤ berat batas verifikasi";
+      } else {
+        comparisonText = analysis.comparisonText || analysis.comparison || "";
+      }
+      document.getElementById("resComparison").textContent = comparisonText;
+
+      document.getElementById("resConclusion").textContent = analysis.conclusion || "-";
+
+      // Tampilkan kontainer preview & aktifkan tombol download
+      document.getElementById("previewContainer").classList.remove("hidden");
+    }
+
+    /**
+     * Function: Generate dan Download PDF secara programatis via jsPDF
+     */
+    function generateResultPdf(result) {
+      if (!result || !result.success) return;
+
+      if (typeof window.jspdf === "undefined" || !window.jspdf.jsPDF) {
+        alert("Library jsPDF tidak tersedia.");
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        unit: "mm",
+        format: "a4",
+        orientation: "portrait"
+      });
+
+      const meta = result.metadata || {};
+      const analysis = result.analysis || {};
+
+      let y = 20;
+
+      const addLine = (label, value) => {
+        pdf.text(label + " : " + (value ?? "-"), 20, y);
+        y += 7;
+      };
+
+      pdf.setFontSize(16);
+      pdf.text("Hasil Analisis Penimbangan Master Box", 20, y);
+      y += 12;
+
+      pdf.setFontSize(11);
+
+      addLine("No Schedule", meta.schedule);
+      addLine("Nama Produk", meta.productName);
+      addLine("Kode Produk", meta.productCode);
+      addLine("Kode Batch", meta.batchCode);
+      addLine("Weigher", meta.weigher);
+      addLine("Packer", meta.packer);
+      addLine("Tanggal timbang", meta.weighingDate);
+      addLine("Shift", meta.shift);
+
+      y += 5;
+
+      addLine("Bobot karton terendah", formatWeight(analysis.lowestWeight));
+      addLine("Bobot karton tertinggi", formatWeight(analysis.highestWeight));
+      addLine("Berat batas verifikasi", formatWeight(analysis.verificationLimit));
+
+      y += 8;
+
+      pdf.setFontSize(12);
+      pdf.text("Hasil analisis bobot", 20, y);
+      y += 10;
+
+      pdf.setFontSize(11);
+      pdf.text(
+        analysis.comparisonText ||
+        (analysis.comparison === "above"
+          ? "Berat terendah > berat batas verifikasi"
+          : "Berat terendah <= berat batas verifikasi"),
+        20,
+        y
+      );
+
+      y += 12;
+
+      pdf.text("Kesimpulan", 20, y);
+      y += 8;
+
+      const conclusionLines = pdf.splitTextToSize(
+        analysis.conclusion || "-",
+        170
+      );
+
+      pdf.text(conclusionLines, 20, y);
+      y += conclusionLines.length * 7 + 15;
+
+      pdf.text("(..............................)", 20, y);
+
+      const productCode = meta.productCode || "Produk";
+      const batchCode = meta.batchCode || "Batch";
+
+      const filename =
+        String(productCode).replace(/[^A-Za-z0-9_-]/g, "_") +
+        "_" +
+        String(batchCode).replace(/[^A-Za-z0-9_-]/g, "_") +
+        ".pdf";
+
+      pdf.save(filename);
+    }
+  </script>
+</body>
+</html>
