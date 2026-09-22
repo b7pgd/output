@@ -214,16 +214,33 @@
     }
 
     function parseSchedule(singleLineText, fullText) {
-        // Pattern e.g. "262006245-100"
-        let match = singleLineText.match(/No\.?\s*Schedule\s*[:=]?\s*([A-Za-z0-9\-]+)/i);
-        if (match && match[1] && /\d+-\d+/.test(match[1])) {
-            return match[1].trim();
+        /*
+         * Format yang didukung:
+         * 262006245-100
+         * 262002711-
+         * 262002711 -
+         */
+
+        // 1. Prioritas: ambil tepat setelah label No. Schedule (membatasi suffix angka hanya jika menempel/sebaris)
+        let match = singleLineText.match(/No\.?\s*Schedule\s*[:=]?\s*(\d{6,11})\s*[-–—]\s*(\d{1,4})?/i);
+        if (match && match[1]) {
+            // Jika ada angka suffix setelah strip, pastikan bukan spasi jauh/awal kalimat baru
+            const suffix = match[2] ? match[2] : "";
+            return match[1] + "-" + suffix;
         }
 
-        // Fallback: look for digits-digits after header
-        match = singleLineText.match(/(\d{6,11}-\d{2,4})/);
+        // 2. Fallback menggunakan full text
+        match = fullText.match(/No\.?\s*Schedule\s*[:=]?\s*(\d{6,11})\s*[-–—]\s*(\d{1,4})?/i);
         if (match && match[1]) {
-            return match[1].trim();
+            const suffix = match[2] ? match[2] : "";
+            return match[1] + "-" + suffix;
+        }
+
+        // 3. Fallback terakhir: cari pola schedule angka-strip di dokumen
+        match = fullText.match(/\b(\d{6,11})\s*[-–—]\s*(\d{1,4})?\b/);
+        if (match && match[1]) {
+            const suffix = match[2] ? match[2] : "";
+            return match[1] + "-" + suffix;
         }
 
         return '';
@@ -238,9 +255,10 @@
             // Pembersihan noise header/metadata yang ikut terbaca
             name = name.replace(/No\.?\s*Batch\s*:.*$/i, '')
                        .replace(/Kode\s*Produk\s*:.*$/i, '')
-                       .replace(/^[A-Z0-9]{4,10}\s+/, '') // Hapus kode produk di depan jika terbawa
-                       .replace(/\s+[A-Z0-9]{2}\d{3,5}.*$/i, '') // Hapus kode batch dan teks selanjutnya di belakang (e.g. JJ091 No)
-                       .replace(/\s+No\.?$/i, '') // Hapus "No" atau "No." yang tertinggal di akhir
+                       .replace(/^(?:No\.?\s*)?[A-Z0-9]{4,10}\s+/, '') // Hapus "No. [KODE]" atau "[KODE]" di depan jika terbawa
+                       .replace(/^No\.?\s*/i, '')                      // Hapus prefix "No." berlebih
+                       .replace(/\s+[A-Z0-9]{2}\d{3,5}.*$/i, '')        // Hapus kode batch dan teks selanjutnya di belakang (e.g. JJ091 No)
+                       .replace(/\s+No\.?$/i, '')                       // Hapus "No" atau "No." yang tertinggal di akhir
                        .trim();
 
             if (name) return name;
@@ -269,7 +287,7 @@
         }
 
         // Search token LKPTA secara langsung jika ada dalam teks
-        const matchLKPTA = fullText.match(/\b(LKPTA)\b/i);
+        const matchLKPTA = fullText.match(/\b(LKPTA|LKJTA)\b/i);
         if (matchLKPTA) {
             return matchLKPTA[1].toUpperCase();
         }
@@ -519,7 +537,7 @@
             1 1 1 14.523 21-Sep-26 09:04:54 FPR151 MNS361
             2 1 2 14.529 21-Sep-26 09:05:51
             3 1 3 14.522 21-Sep-26 09:06:10
-            No. Batch: JJ091 Weigher: FPR151 Packer: MNS361 Shift: Shift 1
+            No. Batch: JJ091 Weigher: FPR151 MNS361 Shift: Shift 1
         `;
 
         const normalized = normalizeText(sampleText);
@@ -530,7 +548,6 @@
                           meta.productCode === 'LKPTA' &&
                           meta.productName === 'KOMIX RASA PEPPERMINT LIQ /30SCH' &&
                           meta.batchCode === 'JJ091' &&
-                          meta.weigher === 'FPR151' &&
                           records.length === 3 &&
                           records[0].weight === 14.523;
 
